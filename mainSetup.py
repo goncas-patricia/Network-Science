@@ -4,6 +4,26 @@ import matplotlib.animation as ani
 import random
 
 SEED = 7
+INITIAL_DEFECTOR_PROB = 0.6
+random.seed(SEED)
+
+def set_all_node_attributes(G, attr_name, attr_value):
+    for node in G.nodes():
+        G.nodes[node][attr_name] = attr_value
+
+
+def set_all_edge_attributes(G, attr_name, attr_value):
+    for edge in G.edges():
+        G.edges[edge][attr_name] = attr_value
+
+
+def set_node_bool_attribute_with_prob_k(G, attr_name, prob):
+    for node in G.nodes():
+        if random.random() <= prob:
+            G.nodes[node][attr_name] = True
+        else:
+            G.nodes[node][attr_name] = False
+
 N_values = list(range(10, 100))  # Total number of nodes
 E = 5 # Control the scale-free properties
 
@@ -50,3 +70,9 @@ animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
 
 plt.show()
 
+
+
+
+set_node_bool_attribute_with_prob_k(G, 'defector', INITIAL_DEFECTOR_PROB)
+
+print(G.nodes(data=True))
