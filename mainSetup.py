@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
+from itertools import count
 import random
 
 SEED = 7
@@ -33,17 +34,23 @@ def update(frame):
     N = N_values[frame]
     G = nx.barabasi_albert_graph(N, E, SEED)  # Scale-free network
 
-    # Visualize
-    # Plot the network
-    plt.clf()
-    plt.subplot(121)
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, with_labels=False, node_size=50, node_color=G.nodes(), width=0.5)
-    plt.title(f"Network with {N} nodes")
+    set_node_bool_attribute_with_prob_k(G, 'defector', .5)
 
     # Calculate the degrees of all nodes in the network
     k_s = [k_n for N, k_n in G.degree()]
-    k_s = [k_n * random.randint(0, 1) for k_n in k_s]
+    k_s = [k_n * random.randint(0, 30) for k_n in k_s]
+
+    # get unique groups
+    groups = set(nx.get_node_attributes(G,'defector').values())
+    mapping = dict(zip(sorted(groups),count()))
+    colors = [mapping[G.nodes[n]['defector']] for n in G.nodes()]
+
+    # Visualize
+    plt.clf()
+    plt.subplot(121)
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=False, node_size=k_s, node_color=colors, width=0.5)
+    plt.title(f"Network with {N} nodes")
 
     # Plot the degree distribution as a histogram
     plt.subplot(122)
@@ -69,10 +76,3 @@ fig = plt.figure(figsize=(12, 6))
 animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
 
 plt.show()
-
-
-
-
-set_node_bool_attribute_with_prob_k(G, 'defector', INITIAL_DEFECTOR_PROB)
-
-print(G.nodes(data=True))
