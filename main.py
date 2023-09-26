@@ -2,25 +2,26 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
 from itertools import count
-import sympy as sp
 import random
+
+# TASKS
+# mudar o cost-benefit para N-player
+# introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
 
 SEED = 7
 INITIAL_DEFECTOR_PROB = 0.6
 random.seed(SEED)
 
 # Total number of nodes
-N_values = list(range(10, 100))  
-# Control the scale-free properties
-E = 5 
+N_values = list(range(2, 100)) 
+# Risk
+r = [0.00, 0.25, 0.50, 0.75, 1.00]
+# Models
+models = ['H','SH','SG','PD'] 
 # Initial endowment
 b = 2
 # Contribution (fraction of the endowment)
 c = .1*b
-# Risk
-r = [0.00, 0.25, 0.50, 0.75, 1.00]
-# Models
-models = ['H','SH','SG','PD']
 
 def set_all_node_attributes(G, attr_name, attr_value):
     for node in G.nodes():
@@ -58,11 +59,12 @@ def risk_loss(G, M):
             if random.random() <= r[2]:
                 G.nodes[node]['endowment'] = 0
 
-def gradient_of_selection(G, model):
-        return x * (1 - x) * fitness(G,model)[2]
+def gradient_of_selection(x, model):
+        return x * (1 - x) * fitness(x,model)[2]
 
-def fitness(G, model):
-    # Cost-Benefit Values (para já, valores estáticos)
+def fitness(x, model):
+    # Cost-Benefit Values 
+    # Para já, estáticos e 2-Player (should be N-Player)
     if model == 'H':
         R = b
         T = b-c
@@ -84,19 +86,22 @@ def fitness(G, model):
         S = -c
         P = 0
 
-    # Fitness values
-    f_c = x(G)*(R-S)+S
-    f_d = x(G)*(T-P)+P
-    f_delta = x(G)*(R-T-S+P)+S-P
+    # Fitness
+    f_c = x*(R-S)+S
+    f_d = x*(T-P)+P
+    f_delta = x*(R-T-S+P)+S-P
     fitness = [f_c, f_d, f_delta]
 
     return fitness
 
-def setup(N):
-
+def setup(N, model):
     global G
-    # Scale-free network
-    G = nx.barabasi_albert_graph(N, E, SEED)  
+    # Scale-free network (barabasi-albert)
+    if model == 'BA':
+        G = nx.barabasi_albert_graph(N, N//2, SEED)  
+    # Random Network (erdos-renyi)
+    if model == 'ER':
+        G = nx.erdos_renyi_graph(N, 1, SEED)
 
     # Setup with 50% Ds and 50% Cs
     set_node_bool_attribute_with_prob_k(G, 'cooperator', .5) 
@@ -109,7 +114,7 @@ def update(frame):
     # Generate Population of size Z in which individuals engage in an N person dilemma
     N = N_values[frame]
 
-    setup(N)
+    setup(N, 'BA')
 
     # Calculate the degrees of all nodes in the network
     k_s = [k_n for N, k_n in G.degree()]
@@ -145,7 +150,7 @@ def evolution_k_with_N():
     plt.show()
 
 def evolution_gradient_of_selection_with_x(model):
-    setup(N_values[2])
+    setup(N_values[2], 'ER')
 
     # Evaluate function and create the plot
     x_vals = [i / 1000 for i in range(1001)] 
@@ -160,5 +165,5 @@ def evolution_gradient_of_selection_with_x(model):
 
     plt.show()
 
-#evolution_k_with_N()
+evolution_k_with_N()
 evolution_gradient_of_selection_with_x('H')
