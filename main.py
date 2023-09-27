@@ -26,6 +26,8 @@ COMPLETE = 'COMPLETE'
 COOPERATORS = 'cooperator'
 ENDOWMENT = 'endowment'
 CONTRIBUTION = 'contribution'
+INFINITE_WELL_MIXED = 'infinite_well_mixed'
+FINITE_WELL_MIXED = 'finite_well_mixed'
 
 
 #####################
@@ -85,7 +87,7 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
 
 
 def theta(x):
-    """Heaviside Step function
+    """Heaviside Step function:
     
     1 if x >= 0, 0 otherwise"""
     return 1 if x >= 0 else 0
@@ -110,7 +112,8 @@ def number_of_cooperators(G):
 
 
 def fraction_of_contributors(G):
-    """Fraction of contributors in the population
+    """Fraction of contributors in the population:
+
     returns number of cooperators / number of nodes"""
     x = number_of_cooperators(G) / len(G.nodes())
     return x
@@ -123,7 +126,8 @@ def fraction_of_defectors(G):
 
 
 def risk_loss(G, M):
-    """Risk loss function
+    """Risk loss function:
+
     If the number of cooperators is less than the threshold M,
     then all nodes lose their endowment with probability r[2]"""
     if number_of_cooperators(G) < M:
@@ -133,9 +137,11 @@ def risk_loss(G, M):
 
 
 def gradient_of_selection(x, model):
+    """Gradient of selection:
+
+    Replicator equation finite well-mixed populations"""
     # 2-Person
     #return x * (1 - x) * fitness(x,model)[2]
-    # Finite well-mixed populations
     return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
 
 
@@ -179,6 +185,52 @@ def fitness(x, model):
     fitness = [fC, fD, fDelta]
 
     return fitness
+
+
+def cost_to_risk_ratio(i):
+    """Cost to risk ratio:
+
+    Cost to risk ratio of the game
+    
+    i = index of the risk value in the risk array r = [0.00, 0.25, 0.50, 0.75, 1.00]"""
+    if type(i) != int:
+        raise TypeError("cost_to_risk_ratio: i must be an integer")
+    if i < 0 or i > len(r):
+        raise ValueError("cost_to_risk_ratio: i must be between 0 and len(r)")
+
+    return c / r[i]
+
+def _aux_infinite_well_mixed(x, m):
+    """Auxiliary function for the infinite well-mixed population fitness delta"""
+    return math.comb(N(G) - 1, m - 1) * (x**(m - 1)) * ((1 - x)**(N(G)-m))
+
+
+def fitness_delta_infinite_well_mixed(x, m):
+    """Computes the fitness delta (fitness contributors - fitness defectors)
+    for an infinite well-mixed population, based on the formula provided in the paper:
+    
+    Risk of collective failure provides an escape from the tragedy of the commons,
+    Francisco C. Santos, Jorge M. Pacheco"""
+    return b * _aux_infinite_well_mixed(x, m)
+
+
+def fitness_delta(x, model, m, pop_type=INFINITE_WELL_MIXED):
+    """Fitness delta:
+
+    m = threshold of cooperators
+    pop_type = type of population (infinite well-mixed or finite well-mixed)
+
+    Fitness of cooperators - fitness of defectors. Based on the formulas provided in the paper:
+
+    m = threshold of cooperators
+    pop_type = type of population (infinite well-mixed or finite well-mixed)
+
+    Risk of collective failure provides an escape from the tragedy of the commons,
+    Francisco C. Santos, Jorge M. Pacheco"""
+    if pop_type == INFINITE_WELL_MIXED:
+        return fitness_delta_infinite_well_mixed(x, m)
+    elif pop_type == FINITE_WELL_MIXED:
+        pass # TODO implement finite well-mixed population
 
 
 def setup(N, model):
