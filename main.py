@@ -18,7 +18,7 @@ PRISONER_DILEMMA = 'PD'
 STAG_HUNT = 'SH'
 SNOW_DRIFT = 'SG'
 CHICKEN_GAME = SNOW_DRIFT
-BARABSI_ALBERT = 'BA'
+BARABASI_ALBERT = 'BA'
 ERDOS_RENYI = 'ER'
 COMPLETE = 'COMPLETE'
 COOPERATORS = 'cooperator'
@@ -143,7 +143,7 @@ def fitness(x, model):
 
 def setup(N, model):
     global G
-    if model == BARABSI_ALBERT:
+    if model == BARABASI_ALBERT:
         # Scale-free network (barabasi-albert)
         G = nx.barabasi_albert_graph(N, N//2, SEED)  
     elif model == ERDOS_RENYI:
@@ -165,7 +165,7 @@ def update(frame):
     # Generate Population of size Z in which individuals engage in an N person dilemma
     N = N_values[frame]
 
-    setup(N, BARABSI_ALBERT)
+    setup(N, BARABASI_ALBERT)
 
     # Calculate the degrees of all nodes in the network
     k_s = [k_n for N, k_n in G.degree()]
