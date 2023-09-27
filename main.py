@@ -139,13 +139,18 @@ def risk_loss(G, M):
                 G.nodes[node][ENDOWMENT] = 0
 
 
-def gradient_of_selection(x, model):
+def gradient_of_selection(x, model, pop_type=INFINITE_WELL_MIXED):
     """Gradient of selection:
 
-    Replicator equation for finite well-mixed populations"""
+    Replicator equation
+    
+    pop_type = type of population (infinite well-mixed or finite well-mixed)"""
     # 2-Person
     #return x * (1 - x) * fitness(x,model)[2]
-    return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
+    if pop_type == INFINITE_WELL_MIXED:
+        return x * (1 - x) * fitness_delta(x, model, m, pop_type)
+    elif pop_type == FINITE_WELL_MIXED:
+        return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
 
 
 def fitness(x, model):
@@ -225,9 +230,6 @@ def fitness_delta(x, model, m, pop_type=INFINITE_WELL_MIXED):
     pop_type = type of population (infinite well-mixed or finite well-mixed)
 
     Fitness of cooperators - fitness of defectors. Based on the formulas provided in the paper:
-
-    m = threshold of cooperators
-    pop_type = type of population (infinite well-mixed or finite well-mixed)
 
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
