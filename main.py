@@ -99,15 +99,18 @@ def payoffC(k, M, r):
 
 
 def N(G):
+    """Returns the number of nodes in the network"""
     return len(G.nodes())
 
 
 def cooperators(G):
+    """Returns a list of cooperators in the population"""
     cooperators = [node for node in G.nodes() if G.nodes[node][COOPERATORS] == 1]
     return cooperators
 
 
 def number_of_cooperators(G):
+    """Number of cooperators in the population"""
     return len(cooperators(G))
 
 
@@ -139,7 +142,7 @@ def risk_loss(G, M):
 def gradient_of_selection(x, model):
     """Gradient of selection:
 
-    Replicator equation finite well-mixed populations"""
+    Replicator equation for finite well-mixed populations"""
     # 2-Person
     #return x * (1 - x) * fitness(x,model)[2]
     return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
@@ -200,6 +203,7 @@ def cost_to_risk_ratio(i):
 
     return c / r[i]
 
+
 def _aux_infinite_well_mixed(x, m):
     """Auxiliary function for the infinite well-mixed population fitness delta"""
     return math.comb(N(G) - 1, m - 1) * (x**(m - 1)) * ((1 - x)**(N(G)-m))
@@ -230,6 +234,7 @@ def fitness_delta(x, model, m, pop_type=INFINITE_WELL_MIXED):
     if pop_type == INFINITE_WELL_MIXED:
         return fitness_delta_infinite_well_mixed(x, m)
     elif pop_type == FINITE_WELL_MIXED:
+        pop_size = N(G) # pop_size is called Z in the paper
         pass # TODO implement finite well-mixed population
 
 
