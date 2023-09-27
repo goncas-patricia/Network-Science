@@ -2,6 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
 from itertools import count
+import numpy as np
 import random
 
 # TASKS
@@ -13,7 +14,7 @@ import random
 #################
 
 SEED = 7
-INITIAL_DEFECTOR_PROB = 0.6
+INITIAL_COOPERATOR_PROB = 0.5
 PRISONER_DILEMMA = 'PD'
 STAG_HUNT = 'SH'
 SNOW_DRIFT = 'SG'
@@ -47,6 +48,8 @@ models = ['H',STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA]
 b = 1
 # Contribution (fraction of the endowment)
 c = .1*b
+# Social learning
+beta = 0.5
 
 
 ##################
@@ -105,7 +108,10 @@ def risk_loss(G, M):
 
 
 def gradient_of_selection(x, model):
-        return x * (1 - x) * fitness(x,model)[2]
+    # 2-Person
+    #return x * (1 - x) * fitness(x,model)[2]
+    # Finite well-mixed populations
+    return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
 
 
 def fitness(x, model):
@@ -154,7 +160,7 @@ def setup(N, model):
         G = nx.classic.complete_graph(N)
 
     # Setup with 50% Ds and 50% Cs
-    set_node_bool_attribute_with_prob_k(G, COOPERATORS, .5) 
+    set_node_bool_attribute_with_prob_k(G, COOPERATORS, INITIAL_COOPERATOR_PROB) 
     # Game participants each have an initial endowment b
     set_all_node_attributes(G, ENDOWMENT, b)
     # Cs contribute a fraction c of their endowment, whereas Ds do not contribute
