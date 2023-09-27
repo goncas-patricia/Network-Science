@@ -84,8 +84,12 @@ def cooperators(G):
     return cooperators
 
 
+def number_of_cooperators(G):
+    return len(cooperators(G))
+
+
 def fraction_of_contributors(G):
-    x = len([node for node in G.nodes() if G.nodes[node][COOPERATORS] == 1])/len(G.nodes())
+    x = number_of_cooperators(G) / len(G.nodes())
     return x
 
 
@@ -94,7 +98,7 @@ def fraction_of_defectors(G):
 
 
 def risk_loss(G, M):
-    if len([node for node in G.nodes() if G.nodes[node][COOPERATORS] == 1]) < M*len(G.nodes()):
+    if number_of_cooperators(G) < M*len(G.nodes()):
         if random.random() <= r[2]:
             for node in G.nodes():
                 G.nodes[node][ENDOWMENT] = 0
