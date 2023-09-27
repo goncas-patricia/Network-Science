@@ -85,6 +85,9 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
 
 
 def theta(x):
+    """Heaviside Step function
+    
+    1 if x >= 0, 0 otherwise"""
     return 1 if x >= 0 else 0
 
 
@@ -107,15 +110,22 @@ def number_of_cooperators(G):
 
 
 def fraction_of_contributors(G):
+    """Fraction of contributors in the population
+    returns number of cooperators / number of nodes"""
     x = number_of_cooperators(G) / len(G.nodes())
     return x
 
 
 def fraction_of_defectors(G):
+    """Fraction of defectors in the population
+    returns 1 - fraction_of_contributors(G)"""
     return 1 - fraction_of_contributors(G)
 
 
 def risk_loss(G, M):
+    """Risk loss function
+    If the number of cooperators is less than the threshold M,
+    then all nodes lose their endowment with probability r[2]"""
     if number_of_cooperators(G) < M:
         if random.random() <= r[2]:
             for node in G.nodes():
@@ -157,10 +167,11 @@ def fitness(x, model):
     fC = 0
     fD = 0
 
-    for k in range(N(G)):
-        binomial = math.comb(N(G) - 1, k)
-        payoffC = payoffC(x*N(G) + 1, m*N(G), r[2])
-        mult = (x ** k) * ((1 - x) ** (N(G) - 1 - k))
+    numVertices = N(G)
+    for k in range(numVertices):
+        binomial = math.comb(numVertices - 1, k)
+        payoffC = payoffC(x*numVertices + 1, m*numVertices, r[2])
+        mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
         fC += binomial * mult * payoffC
         fD = binomial * mult * (payoffC - c*b)
 
