@@ -4,6 +4,7 @@ import matplotlib.animation as ani
 from itertools import count
 import numpy as np
 import random
+import math
 
 # TASKS
 # mudar o cost-benefit para N-player
@@ -50,7 +51,8 @@ b = 1
 c = .1*b
 # Social learning
 beta = 0.5
-
+# Threshold (fraction of N(G))
+m = 0.5
 
 ##################
 ### Functions ####
@@ -82,6 +84,19 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
             G.nodes[node][attr_name] = defector
 
 
+def theta(x):
+    return 1 if x >= 0 else 0
+
+
+# Group of size N and k Cs
+def payoffC(k, M, r):
+    return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
+
+
+def N(G):
+    return len(G.nodes())
+
+
 def cooperators(G):
     cooperators = [node for node in G.nodes() if G.nodes[node][COOPERATORS] == 1]
     return cooperators
@@ -101,7 +116,7 @@ def fraction_of_defectors(G):
 
 
 def risk_loss(G, M):
-    if number_of_cooperators(G) < M*len(G.nodes()):
+    if number_of_cooperators(G) < M:
         if random.random() <= r[2]:
             for node in G.nodes():
                 G.nodes[node][ENDOWMENT] = 0
@@ -139,10 +154,18 @@ def fitness(x, model):
         P = 0
 
     # Fitness
-    f_c = x*(R-S)+S
-    f_d = x*(T-P)+P
-    f_delta = x*(R-T-S+P)+S-P
-    fitness = [f_c, f_d, f_delta]
+    fC = 0
+    fD = 0
+
+    for k in range(N(G)):
+        binomial = math.comb(N(G) - 1, k)
+        payoffC = payoffC(x*N(G) + 1, m*N(G), r[2])
+        mult = (x ** k) * ((1 - x) ** (N(G) - 1 - k))
+        fC += binomial * mult * payoffC
+        fD = binomial * mult * (payoffC - c*b)
+
+    fDelta = x*(R-T-S+P)+S-P
+    fitness = [fC, fD, fDelta]
 
     return fitness
 
