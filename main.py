@@ -173,7 +173,7 @@ def fitness(x, model):
         payoffC = payoffC(x*numVertices + 1, m*numVertices, r[2])
         mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
         fC += binomial * mult * payoffC
-        fD = binomial * mult * (payoffC - c*b)
+        fD += binomial * mult * (payoffC - c*b)
 
     fDelta = x*(R-T-S+P)+S-P
     fitness = [fC, fD, fDelta]
