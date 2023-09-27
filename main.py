@@ -19,7 +19,7 @@ r = [0.00, 0.25, 0.50, 0.75, 1.00]
 # Models
 models = ['H','SH','SG','PD'] 
 # Initial endowment
-b = 2
+b = 1
 # Contribution (fraction of the endowment)
 c = .1*b
 
@@ -27,9 +27,11 @@ def set_all_node_attributes(G, attr_name, attr_value):
     for node in G.nodes():
         G.nodes[node][attr_name] = attr_value
 
+
 def set_all_edge_attributes(G, attr_name, attr_value):
     for edge in G.edges():
         G.edges[edge][attr_name] = attr_value
+
 
 def set_node_bool_attribute_with_prob_k(G, attr_name, prob):
     for node in G.nodes():
@@ -38,6 +40,7 @@ def set_node_bool_attribute_with_prob_k(G, attr_name, prob):
         else:
             G.nodes[node][attr_name] = False
 
+
 def set_behavior_node_attributes(G, attr_name, cooperator, defector):
     for node in G.nodes():
         if G.nodes[node]['cooperator'] == 1:
@@ -45,22 +48,31 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
         else:
             G.nodes[node][attr_name] = defector
 
+
 def cooperators(G):
     cooperators = [node for node in G.nodes() if G.nodes[node]['cooperator'] == 1]
     return cooperators
 
-def x(G):
+
+def fraction_of_contributors(G):
     x = len([node for node in G.nodes() if G.nodes[node]['cooperator'] == 1])/len(G.nodes())
     return x
 
+
+def fraction_of_defectors(G):
+    return 1 - fraction_of_contributors(G)
+
+
 def risk_loss(G, M):
     if len([node for node in G.nodes() if G.nodes[node]['cooperator'] == 1]) < M*len(G.nodes()):
-        for node in G.nodes():
-            if random.random() <= r[2]:
+        if random.random() <= r[2]:
+            for node in G.nodes():
                 G.nodes[node]['endowment'] = 0
+
 
 def gradient_of_selection(x, model):
         return x * (1 - x) * fitness(x,model)[2]
+
 
 def fitness(x, model):
     # Cost-Benefit Values 
@@ -94,14 +106,18 @@ def fitness(x, model):
 
     return fitness
 
+
 def setup(N, model):
     global G
-    # Scale-free network (barabasi-albert)
     if model == 'BA':
+        # Scale-free network (barabasi-albert)
         G = nx.barabasi_albert_graph(N, N//2, SEED)  
-    # Random Network (erdos-renyi)
-    if model == 'ER':
+    elif model == 'ER':
+        # Random Network (erdos-renyi)
         G = nx.erdos_renyi_graph(N, 1, SEED)
+    elif model == 'COMPLETE':
+        # Complete/fully connected graph 
+        G = nx.classic.complete_graph(N)
 
     # Setup with 50% Ds and 50% Cs
     set_node_bool_attribute_with_prob_k(G, 'cooperator', .5) 
@@ -109,6 +125,7 @@ def setup(N, model):
     set_all_node_attributes(G,'endowment', b)
     # Cs contribute a fraction c of their endowment, whereas Ds do not contribute
     set_behavior_node_attributes(G,'contribution', c, 0)
+
 
 def update(frame):
     # Generate Population of size Z in which individuals engage in an N person dilemma
@@ -140,6 +157,7 @@ def update(frame):
     plt.ylabel("Frequency")
     plt.show()
 
+
 def evolution_k_with_N():
     # Create a figure for the animation
     fig = plt.figure(figsize=(12, 6))
@@ -148,6 +166,7 @@ def evolution_k_with_N():
     animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
 
     plt.show()
+
 
 def evolution_gradient_of_selection_with_x(model):
     setup(N_values[2], 'ER')
