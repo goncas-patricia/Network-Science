@@ -95,6 +95,8 @@ def theta(x):
 
 # Group of size N and k Cs
 def payoffC(k, M, r):
+    """Returns the payoff of a single C in a group of K Cs
+    M < N is the coordination threshold necessary to achieve a collective benefit"""
     return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
 
 
@@ -154,8 +156,12 @@ def gradient_of_selection(x, model, pop_type=INFINITE_WELL_MIXED):
 
 
 def fitness(x, model):
-    # Cost-Benefit Values 
-    # Para já, estáticos e 2-Player (should be N-Player)
+    """Fitness for Cs and Ds
+
+    First: 2-Player for each model
+    
+    Second: N-Player for the model present in the paper"""
+
     if model == 'H':
         R = b
         T = b-c
@@ -177,10 +183,12 @@ def fitness(x, model):
         S = -c
         P = 0
 
+    #fDelta = x*(R-T-S+P)+S-P
+
     # Fitness
     fC = 0
     fD = 0
-
+    
     numVertices = N(G)
     for k in range(numVertices):
         binomial = math.comb(numVertices - 1, k)
@@ -189,8 +197,7 @@ def fitness(x, model):
         fC += binomial * mult * payoffC
         fD += binomial * mult * (payoffC - c*b)
 
-    fDelta = x*(R-T-S+P)+S-P
-    fitness = [fC, fD, fDelta]
+    fitness = [fC, fD, fC - fD]
 
     return fitness
 
