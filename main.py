@@ -132,18 +132,18 @@ def fraction_of_defectors(G):
     return 1 - fraction_of_contributors(G)
 
 
-def risk_loss(G, M):
+def risk_loss(G, risk, M):
     """Risk loss function:
 
     If the number of cooperators is less than the threshold M,
-    then all nodes lose their endowment with probability r[2]"""
+    then all nodes lose their endowment with probability risk"""
     if number_of_cooperators(G) < M:
-        if random.random() <= r[2]:
+        if random.random() <= risk:
             for node in G.nodes():
                 G.nodes[node][ENDOWMENT] = 0
 
 
-def gradient_of_selection(x, model, pop_type=INFINITE_WELL_MIXED):
+def gradient_of_selection(x, risk, model, pop_type=INFINITE_WELL_MIXED):
     """Gradient of selection:
 
     Replicator equation
@@ -152,12 +152,12 @@ def gradient_of_selection(x, model, pop_type=INFINITE_WELL_MIXED):
     # 2-Person
     #return x * (1 - x) * fitness(x,model)[2]
     if pop_type == INFINITE_WELL_MIXED:
-        return x * (1 - x) * fitness_delta(x, model, m, pop_type)
+        return x * (1 - x) * fitness_delta(x, risk, model, m, pop_type)
     elif pop_type == FINITE_WELL_MIXED:
-        return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
+        return x * (1 - x) * np.tanh(0.5 * beta * fitness(x, risk, model)[2])
 
 
-def fitness(x, model, pop_type=INFINITE_WELL_MIXED):
+def fitness(x, risk, model, pop_type=INFINITE_WELL_MIXED):
     """Fitness for Cs and Ds
 
     First: 2-Player for each model
@@ -188,8 +188,8 @@ def fitness(x, model, pop_type=INFINITE_WELL_MIXED):
         if pop_type == INFINITE_WELL_MIXED:
             for k in range(numVertices):
                 binomial = math.comb(numVertices - 1, k)
-                payoffD = payoffD(x*numVertices, m*numVertices, r[2])
-                payoffC = payoffD(x*numVertices + 1, m*numVertices, r[2]) - c*b
+                payoffD = payoffD(x*numVertices, m*numVertices, risk)
+                payoffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
                 mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
                 fC += binomial * mult * payoffD
                 fD += binomial * mult * payoffC
@@ -200,8 +200,8 @@ def fitness(x, model, pop_type=INFINITE_WELL_MIXED):
                     j = int(random.random()*numVertices)
                 binomialC = math.comb(k, j) * math.comb(Z - k - 1, numVertices - j - 1)
                 binomialD = math.comb(k - 1, j) * math.comb(Z - k, numVertices - j - 1)
-                payoffD = payoffD(x*numVertices, m*numVertices, r[2])
-                payoffC = payoffD(x*numVertices + 1, m*numVertices, r[2]) - c*b
+                payoffD = payoffD(x*numVertices, m*numVertices, risk)
+                payoffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
                 fC += binomialC * payoffD
                 fD += binomialD * payoffC
 
@@ -231,20 +231,20 @@ def cost_to_risk_ratio(i):
 def _aux_infinite_well_mixed(x, m):
     """Auxiliary function for the infinite well-mixed population fitness delta"""
     numVertices = N(G)
-    print(numVertices)
-    return math.comb(numVertices - 1, m*numVertices - 1) * (x**(m*numVertices - 1)) * ((1 - x)**((1-m)*numVertices))
+    M = int(m*numVertices)
+    return math.comb(numVertices - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(numVertices-M))
 
 
-def fitness_delta_infinite_well_mixed(x, m):
+def fitness_delta_infinite_well_mixed(x, risk, m):
     """Computes the fitness delta (fitness contributors - fitness defectors)
     for an infinite well-mixed population, based on the formula provided in the paper:
     
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
-    return b * _aux_infinite_well_mixed(x, m)
+    return b * (_aux_infinite_well_mixed(x, m)*risk - c)
 
 
-def fitness_delta(x, model, m, pop_type=INFINITE_WELL_MIXED):
+def fitness_delta(x, risk, model, m, pop_type=INFINITE_WELL_MIXED):
     """Fitness delta:
 
     m = threshold of cooperators
@@ -255,7 +255,7 @@ def fitness_delta(x, model, m, pop_type=INFINITE_WELL_MIXED):
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
     if pop_type == INFINITE_WELL_MIXED:
-        return fitness_delta_infinite_well_mixed(x, m)
+        return fitness_delta_infinite_well_mixed(x, risk, m)
     elif pop_type == FINITE_WELL_MIXED:
         pop_size = N(G) # pop_size is called Z in the paper
         pass # TODO implement finite well-mixed population
@@ -323,18 +323,18 @@ def evolution_k_with_N():
 
 
 def evolution_gradient_of_selection_with_x(model):
-    setup(N_values[2], ERDOS_RENYI)
+    setup(N_values[10], ERDOS_RENYI)
 
     # Evaluate function and create the plot
     x_vals = [i / 1000 for i in range(1001)] 
 
-    for model in models:
-        plt.plot(x_vals, [gradient_of_selection(x, model) for x in x_vals], label = model)
-
+    for risk in r:
+        plt.plot(x_vals, [gradient_of_selection(x, risk, model) for x in x_vals], label = risk)
+    
+    plt.legend()
     plt.xlabel('x (Fraction of cooperators)')
     plt.ylabel('Gradient of selection')
     plt.title('Gradient of selection vs. x')
-    plt.legend()
 
     plt.show()
 
