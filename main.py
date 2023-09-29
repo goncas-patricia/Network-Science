@@ -230,7 +230,9 @@ def cost_to_risk_ratio(i):
 
 def _aux_infinite_well_mixed(x, m):
     """Auxiliary function for the infinite well-mixed population fitness delta"""
-    return math.comb(N(G) - 1, m - 1) * (x**(m - 1)) * ((1 - x)**(N(G)-m))
+    numVertices = N(G)
+    print(numVertices)
+    return math.comb(numVertices - 1, m*numVertices - 1) * (x**(m*numVertices - 1)) * ((1 - x)**((1-m)*numVertices))
 
 
 def fitness_delta_infinite_well_mixed(x, m):
@@ -327,7 +329,7 @@ def evolution_gradient_of_selection_with_x(model):
     x_vals = [i / 1000 for i in range(1001)] 
 
     for model in models:
-        plt.plot(x_vals, [gradient_of_selection(x,model) for x in x_vals], label = model)
+        plt.plot(x_vals, [gradient_of_selection(x, model) for x in x_vals], label = model)
 
     plt.xlabel('x (Fraction of cooperators)')
     plt.ylabel('Gradient of selection')
@@ -336,5 +338,5 @@ def evolution_gradient_of_selection_with_x(model):
 
     plt.show()
 
-evolution_k_with_N()
-evolution_gradient_of_selection_with_x('H')
+#evolution_k_with_N()
+evolution_gradient_of_selection_with_x('PD')
