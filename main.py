@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
+from scipy.stats import hypergeom
 from itertools import count
 import numpy as np
 import random
@@ -43,6 +44,7 @@ random.seed(SEED)
 
 # Total number of nodes
 N_values = list(range(2, 100)) 
+Z = 150
 # Risk
 r = [0.00, 0.25, 0.50, 0.75, 1.00]
 # Models
@@ -94,7 +96,7 @@ def theta(x):
 
 
 # Group of size N and k Cs
-def payoffC(k, M, r):
+def payoffD(k, M, r):
     """Returns the payoff of a single C in a group of K Cs
     M < N is the coordination threshold necessary to achieve a collective benefit"""
     return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
@@ -155,12 +157,16 @@ def gradient_of_selection(x, model, pop_type=INFINITE_WELL_MIXED):
         return x * (1 - x) * np.tanh(0.5 * beta * fitness(x,model)[2])
 
 
-def fitness(x, model):
+def fitness(x, model, pop_type=INFINITE_WELL_MIXED):
     """Fitness for Cs and Ds
 
     First: 2-Player for each model
     
     Second: N-Player for the model present in the paper"""
+
+    # Fitness
+    fC = 0
+    fD = 0
 
     if model == 'H':
         R = b
@@ -178,24 +184,30 @@ def fitness(x, model):
         S = c
         P = 0
     elif model == PRISONER_DILEMMA:
-        R = b-c
-        T = b
-        S = -c
-        P = 0
+        numVertices = N(G)
+        if pop_type == INFINITE_WELL_MIXED:
+            for k in range(numVertices):
+                binomial = math.comb(numVertices - 1, k)
+                payoffD = payoffD(x*numVertices, m*numVertices, r[2])
+                payoffC = payoffD(x*numVertices + 1, m*numVertices, r[2]) - c*b
+                mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
+                fC += binomial * mult * payoffD
+                fD += binomial * mult * payoffC
+        elif pop_type == FINITE_WELL_MIXED:
+            for k in range(numVertices):
+                j = k + 1
+                while j > k:
+                    j = int(random.random()*numVertices)
+                binomialC = math.comb(k, j) * math.comb(Z - k - 1, numVertices - j - 1)
+                binomialD = math.comb(k - 1, j) * math.comb(Z - k, numVertices - j - 1)
+                payoffD = payoffD(x*numVertices, m*numVertices, r[2])
+                payoffC = payoffD(x*numVertices + 1, m*numVertices, r[2]) - c*b
+                fC += binomialC * payoffD
+                fD += binomialD * payoffC
 
-    #fDelta = x*(R-T-S+P)+S-P
-
-    # Fitness
-    fC = 0
-    fD = 0
-    
-    numVertices = N(G)
-    for k in range(numVertices):
-        binomial = math.comb(numVertices - 1, k)
-        payoffC = payoffC(x*numVertices + 1, m*numVertices, r[2])
-        mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
-        fC += binomial * mult * payoffC
-        fD += binomial * mult * (payoffC - c*b)
+            binomialMain = math.comb(Z - 1, numVertices - 1)
+            fC /= binomialMain
+            fD /= binomialMain
 
     fitness = [fC, fD, fC - fD]
 
