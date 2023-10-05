@@ -385,12 +385,14 @@ def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_itera
 
 
 def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
-                                     convergence_threshold=10, epsilon=0.0001):
+                                     convergence_threshold=10, epsilon=0.0001, 
+                                     max_iterations=math.inf):
     """Iterative stochastic birth-death process:
     
     Performs a stochastic birth-death process until the state of the population
     is 0 (no change in the number of contributors or defectors) or seems to
-    converge
+    converge. A value for max_iterations can be provided if convergence is not
+    essential.
     
     We say it converges if the variation in the number of contributors or defectors
     is smaller than epsilon for convergence_threshold iterations
@@ -399,7 +401,8 @@ def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
     state = 0
     converged = False
     timesCloseToConvergence = 0
-    while not converged:
+    iteration = 0
+    while not converged and iteration < max_iterations:
         variation = stochastic_birth_death(G, risk, model, pop_type=pop_type, num_iterations=100)
         state += variation
 
@@ -414,6 +417,8 @@ def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
 
         if timesCloseToConvergence == convergence_threshold:
             converged = True
+
+        iteration += 1
 
     return state
 
