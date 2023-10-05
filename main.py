@@ -403,6 +403,8 @@ def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
     timesCloseToConvergence = 0
     iteration = 0
     while not converged and iteration < max_iterations:
+        # TODO - Not sure how the number of players might be made to affect this...
+
         variation = stochastic_birth_death(G, risk, model, pop_type=pop_type, num_iterations=100)
         state += variation
 
