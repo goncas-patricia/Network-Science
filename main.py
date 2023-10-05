@@ -7,6 +7,17 @@ import numpy as np
 import random
 import math
 
+# Coisas que podem ser úteis/interessantes falar na apresentação/workshop:
+# - O que é a tragédia dos comuns
+#       - O que é o risco de falha coletiva
+# - Exemplos reais da tragédia dos comuns
+# - Paper (parte dos métodos Evolutionary Dynamics in Finite Well-Mixed Populations)
+#   fala de random drift para low fitness values. Pode ser interessante explicar o que
+#   isso quer dizer e relacionar com o conceito análogo na biologia (aka driva genética)
+#   na fixação de um fenótipo/alelo
+# - Observações dos resultados empíricos
+
+
 # TASKS
 # mudar o cost-benefit para N-player
 # introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
@@ -48,7 +59,7 @@ Z = 150
 # Risk
 r = [0.00, 0.25, 0.50, 0.75, 1.00]
 # Models
-models = ['H',STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
+models = ['H', STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
 # Initial endowment
 b = 1
 # Contribution (fraction of the endowment)
@@ -259,6 +270,153 @@ def fitness_delta(x, risk, model, m, pop_type=INFINITE_WELL_MIXED):
     elif pop_type == FINITE_WELL_MIXED:
         pop_size = N(G) # pop_size is called Z in the paper
         pass # TODO implement finite well-mixed population
+
+
+def stochastic_birth_death_over_all_nodes(G, risk, model, pop_type=FINITE_WELL_MIXED):
+    """Stochastic birth-death process over all nodes:
+    
+    Under pair-wise comparison, each individual i adopts the
+    strategy (cooperation or defection) of a randomly selected member of
+    the population j, with probability given by the Fermi function. Makes one
+    pass over all nodes in the network, updating the state of the population
+    
+    returns the state of the population after the stochastic birth-death process
+
+    state = positive if increase in contributors > increase in defectors,
+            0 if increase in contributors = increase in defectors,
+            negative otherwise
+    """
+    nodes = G.nodes()
+    state = 0 # positive if increase in contributors > increase in defectors
+              # negative if it is smaller
+    for node in nodes:
+        # Select a random node
+        random_node = random.choice(list(nodes))
+
+        x = fraction_of_contributors(G)
+        fitnessContributor, fitnessDefector, delta = fitness(x, risk, model, pop_type=pop_type)
+        # TODO - chamar sempre fitness() aqui parece computacionalmente caro
+        # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
+
+        # Get the fitness of the random node
+        if G.nodes[random_node][COOPERATORS] == 1:
+            fitness_random_node = fitnessContributor
+        else:
+            fitness_random_node = fitnessDefector
+        # Get the fitness of the current node
+        if G.nodes[node][COOPERATORS] == 1:
+            fitness_current_node = fitnessContributor
+        else:
+            fitness_current_node = fitnessDefector
+
+        # Get the probability of the current node adopting the strategy of the random node
+        # based on the Fermi function
+        prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
+
+        # The current node adopts the strategy of the random node with probability prob
+        if random.random() <= prob:
+            if G.nodes[node][COOPERATORS] != G.nodes[random_node][COOPERATORS]:
+                # If they had different strategies, update the state
+                G.nodes[node][COOPERATORS] = G.nodes[random_node][COOPERATORS]
+                if G.nodes[node][COOPERATORS] == 1:
+                    state += 1
+                else:
+                    state -= 1
+
+    return state
+
+
+def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_iterations=1):
+    """Stochastic birth-death process:
+    
+    Under pair-wise comparison, each individual i adopts the
+    strategy (cooperation or defection) of a randomly selected member of
+    the population j, with probability given by the Fermi function. Makes one
+    pass over all nodes in the network, updating the state of the population. Performs
+    this process num_iterations times
+    
+    returns the state of the population after the stochastic birth-death process
+
+    state = positive if increase in contributors > increase in defectors,
+            0 if increase in contributors = increase in defectors,
+            negative otherwise
+    """
+    nodes = G.nodes()
+    state = 0 # positive if increase in contributors > increase in defectors
+              # negative if it is smaller
+
+    for i in range(num_iterations):
+        # Select node that will adapt its strategy
+        social_node = random.choice(list(nodes))
+
+        # Select a random node
+        random_node = random.choice(list(nodes))
+
+        x = fraction_of_contributors(G)
+        fitnessContributor, fitnessDefector, delta = fitness(x, risk, model, pop_type=pop_type)
+        # TODO - chamar sempre fitness() aqui parece computacionalmente caro
+        # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
+
+        # Get the fitness of the random node
+        if G.nodes[random_node][COOPERATORS] == 1:
+            fitness_random_node = fitnessContributor
+        else:
+            fitness_random_node = fitnessDefector
+        # Get the fitness of the current node
+        if G.nodes[social_node][COOPERATORS] == 1:
+            fitness_current_node = fitnessContributor
+        else:
+            fitness_current_node = fitnessDefector
+
+        # Get the probability of the current node adopting the strategy of the random node
+        # based on the Fermi function
+        prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
+
+        # The current node adopts the strategy of the random node with probability prob
+        if random.random() <= prob:
+            if G.nodes[social_node][COOPERATORS] != G.nodes[random_node][COOPERATORS]:
+                # If they had different strategies, update the state
+                if G.nodes[social_node][COOPERATORS] == 1:
+                    state += 1
+                else:
+                    state -= 1
+
+    return state
+
+
+def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
+                                     convergence_threshold=10, epsilon=0.0001):
+    """Iterative stochastic birth-death process:
+    
+    Performs a stochastic birth-death process until the state of the population
+    is 0 (no change in the number of contributors or defectors) or seems to
+    converge
+    
+    We say it converges if the variation in the number of contributors or defectors
+    is smaller than epsilon for convergence_threshold iterations
+    
+    Returns state = overall variation in the number of contributors or defectors"""
+    state = 0
+    converged = False
+    timesCloseToConvergence = 0
+    while not converged:
+        variation = stochastic_birth_death(G, risk, model, pop_type=pop_type, num_iterations=100)
+        state += variation
+
+        if abs(variation) < epsilon:
+            timesCloseToConvergence += 1
+        elif timesCloseToConvergence > 0:
+            # We want a streak of timesCloseToConvergence iterations with variation < epsilon
+            timesCloseToConvergence -= 1
+
+            # TODO - we could consider only subtracting with a certain probability,
+            # but I think this is fine
+
+        if timesCloseToConvergence == convergence_threshold:
+            converged = True
+
+    return state
+
 
 
 def setup(N, model):
