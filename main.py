@@ -21,6 +21,8 @@ import math
 # TASKS
 # mudar o cost-benefit para N-player
 # introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
+# último parágrafo da parte Evolutionary Dynamics in Finite Well-Mixed Populations dos métodos
+# Última parte do paper (Evolutionary Dynamics in Structured Populations)
 
 #################
 ### Constants ###
@@ -40,6 +42,7 @@ ENDOWMENT = 'endowment'
 CONTRIBUTION = 'contribution'
 INFINITE_WELL_MIXED = 'infinite_well_mixed'
 FINITE_WELL_MIXED = 'finite_well_mixed'
+STRUCUTED_POPULATION = 'structured_population'
 
 
 #####################
