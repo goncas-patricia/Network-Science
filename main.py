@@ -349,19 +349,21 @@ def stochastic_birth_death(G, risk, model, mutation_matrix, pop_type=FINITE_WELL
             0 if increase in contributors = increase in defectors,
             negative otherwise
     """
-    nodes = G.nodes()
+    nodes = list(G.nodes())
+    num_nodes = len(nodes)
+
     state = 0 # positive if increase in contributors > increase in defectors
               # negative if it is smaller
 
+    k = number_of_cooperators(G)
     for i in range(num_iterations):
         # Select node that will adopt its strategy
-        social_node = random.choice(list(nodes))
+        social_node = random.choice(nodes)
 
         # Select a random node
-        random_node = random.choice(list(nodes))
+        random_node = random.choice(nodes)
 
-        k = number_of_cooperators(G)
-        x = k / nodes
+        x = k / num_nodes
         fitnessContributor, fitnessDefector, delta = fitness(x, risk, model, pop_type=pop_type)
         # TODO - chamar sempre fitness() aqui parece computacionalmente caro
         # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
@@ -387,8 +389,10 @@ def stochastic_birth_death(G, risk, model, mutation_matrix, pop_type=FINITE_WELL
                 # If they had different strategies, update the state
                 if G.nodes[social_node][COOPERATORS] == 1:
                     state += 1
+                    k += 1
                 else:
                     state -= 1
+                    k -= 1
 
         # Node mutates it's strategy with mutation rate u
         # according to the mutation matrix
@@ -399,10 +403,12 @@ def stochastic_birth_death(G, risk, model, mutation_matrix, pop_type=FINITE_WELL
             if mutation_prob <= defect_prob:
                 G.nodes[social_node][COOPERATORS] = 0
                 state -= 1
+                k -= 1
         else:
             if mutation_prob <= contribute_prob:
                 G.nodes[social_node][COOPERATORS] = 1
                 state += 1
+                k += 1
 
     return state
 
