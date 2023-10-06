@@ -351,7 +351,7 @@ def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_itera
               # negative if it is smaller
 
     for i in range(num_iterations):
-        # Select node that will adapt its strategy
+        # Select node that will adopt its strategy
         social_node = random.choice(list(nodes))
 
         # Select a random node
