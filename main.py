@@ -508,28 +508,45 @@ def evolution_gradient_of_selection_with_x(model):
 
     plt.show()
 
-def evolution_gamma_with_m():
+def gamma(x, N, M):
+    binomial = math.comb(N - 1, M - 1)
+    gamma = binomial * (x ** (M - 1)) * ((1 - x) ** (N - M))
+    return gamma
+
+def evolution_gamma_with_gradient_of_selection():
+    """ Gives us figure 1.B.
+        It also retrieves the internal roots of the gradient of selection.
+    """
     Ni = N_values[10]
+    Mabs = [int(Ni * m) for m in M_values[1:]]
     setup(Ni, ERDOS_RENYI)
-    risk = r[2]
 
     # Evaluate function and create the plot
-    #internalRoot = [(mi - 1)/(Ni - 1) for mi in M_values]
+    x_vals = [i / 1000 for i in range(1001)]
 
-    # Evaluate function and create the plot
-    x_vals = [i / 1000 for i in range(1001)] 
+    for Mi in [1] + Mabs:
+        plt.plot(x_vals, [gamma(x, Ni, int(Mi)) for x in x_vals], label = f'm={Mi}')
 
-    for mi in M_values:
-        for i in range(len(r)):
-            plt.plot(x_vals, [cost_to_risk_ratio(i) for x in x_vals], label = mi)
-    
+    for risk in range(1,len(r)):
+        plt.plot(x_vals, [cost_to_risk_ratio(risk) for x in x_vals], label=f'Risk={r[risk]}')   
+
     plt.legend()
-    plt.xlabel('x (Fraction of cooperators)')
-    plt.ylabel('Gradient of selection')
-    plt.title('Gradient of selection vs. x')
+    plt.xlabel('Gradient of selection')
+    plt.ylabel('Gamma')
+    plt.title(f'Gamma vs gradient of selection (N = {Ni})')
 
     plt.show()
 
+    internal_roots = []
+
+    for Mi in [1] + Mabs:
+        for risk in range(1,len(r)):
+            for x in x_vals:
+                if abs(cost_to_risk_ratio(risk) - gamma(x, Ni, int(Mi))) < 2*1e-4:
+                    internal_roots.append((Mi, risk, x))
+    print(internal_roots)
+                    
+
 #evolution_k_with_N()
 #evolution_gradient_of_selection_with_x('PD')
-evolution_gamma_with_m()
+evolution_gamma_with_gradient_of_selection()
