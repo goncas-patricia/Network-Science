@@ -1,9 +1,12 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
+from scipy.optimize import newton
+from scipy.optimize import fsolve
 from scipy.stats import hypergeom
 from itertools import count
 import numpy as np
+import sympy as sp
 import random
 import math
 
@@ -600,6 +603,10 @@ def gamma(x, N, M):
     gamma = binomial * (x ** (M - 1)) * ((1 - x) ** (N - M))
     return gamma
 
+def internal_roots(x, risk, Ni, Mi):
+    equation = abs(cost_to_risk_ratio(risk) - gamma(x, Ni, Mi))
+    return fsolve(equation, .5)
+
 def evolution_gamma_with_gradient_of_selection():
     """ Gives us figure 1.B.
         It also retrieves the internal roots of the gradient of selection.
@@ -622,17 +629,21 @@ def evolution_gamma_with_gradient_of_selection():
     plt.ylabel('Gamma')
     plt.title(f'Gamma vs gradient of selection (N = {Ni})')
 
-    plt.show()
+    #plt.show()
 
     internal_roots = []
+    x = sp.symbols('x')
 
-    for Mi in [1] + Mabs:
-        for risk in range(1,len(r)):
-            for x in x_vals:
-                if abs(cost_to_risk_ratio(risk) - gamma(x, Ni, int(Mi))) < 2*1e-4:
-                    internal_roots.append((Mi, risk, x))
-    print(internal_roots)
-                    
+    # Make sure we can solve this (if needed)
+    for risk in range(1, len(r)):
+        for Mi in Mabs:  
+            try:
+                print("I tried")
+                root = internal_roots(x, risk, Ni, Mi)
+                internal_roots.append((Mi, risk, root))
+                print("Roots:", root,"\n")
+            except: 
+                pass
 
 #evolution_k_with_N()
 #evolution_gradient_of_selection_with_x('PD')
