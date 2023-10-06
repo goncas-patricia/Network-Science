@@ -60,7 +60,9 @@ random.seed(SEED)
 N_values = list(range(2, 100)) 
 Z = 150
 # Risk
-r = [0.00, 0.25, 0.50, 0.75, 1.00]
+r = [0.0001, 0.25, 0.50, 0.75, 1.00]
+# Thresholds
+M_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1]
 # Models
 models = ['H', STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
 # Initial endowment
@@ -506,5 +508,28 @@ def evolution_gradient_of_selection_with_x(model):
 
     plt.show()
 
+def evolution_gamma_with_m():
+    Ni = N_values[10]
+    setup(Ni, ERDOS_RENYI)
+    risk = r[2]
+
+    # Evaluate function and create the plot
+    #internalRoot = [(mi - 1)/(Ni - 1) for mi in M_values]
+
+    # Evaluate function and create the plot
+    x_vals = [i / 1000 for i in range(1001)] 
+
+    for mi in M_values:
+        for i in range(len(r)):
+            plt.plot(x_vals, [cost_to_risk_ratio(i) for x in x_vals], label = mi)
+    
+    plt.legend()
+    plt.xlabel('x (Fraction of cooperators)')
+    plt.ylabel('Gradient of selection')
+    plt.title('Gradient of selection vs. x')
+
+    plt.show()
+
 #evolution_k_with_N()
-evolution_gradient_of_selection_with_x('PD')
+#evolution_gradient_of_selection_with_x('PD')
+evolution_gamma_with_m()
