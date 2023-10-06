@@ -73,6 +73,9 @@ c = .1*b
 beta = 0.5
 # Threshold (fraction of N(G))
 m = 0.5
+# Mutation Rate
+u = 0.01
+mutation_matrix = []
 
 ##################
 ### Functions ####
@@ -331,7 +334,7 @@ def stochastic_birth_death_over_all_nodes(G, risk, model, pop_type=FINITE_WELL_M
     return state
 
 
-def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_iterations=1):
+def stochastic_birth_death(G, risk, model, mutation_matrix, pop_type=FINITE_WELL_MIXED, num_iterations=1):
     """Stochastic birth-death process:
     
     Under pair-wise comparison, each individual i adopts the
@@ -357,7 +360,8 @@ def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_itera
         # Select a random node
         random_node = random.choice(list(nodes))
 
-        x = fraction_of_contributors(G)
+        k = number_of_cooperators(G)
+        x = k / nodes
         fitnessContributor, fitnessDefector, delta = fitness(x, risk, model, pop_type=pop_type)
         # TODO - chamar sempre fitness() aqui parece computacionalmente caro
         # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
@@ -375,16 +379,30 @@ def stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED, num_itera
 
         # Get the probability of the current node adopting the strategy of the random node
         # based on the Fermi function
-        prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
+        adoption_prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
 
         # The current node adopts the strategy of the random node with probability prob
-        if random.random() <= prob:
+        if random.random() <= adoption_prob:
             if G.nodes[social_node][COOPERATORS] != G.nodes[random_node][COOPERATORS]:
                 # If they had different strategies, update the state
                 if G.nodes[social_node][COOPERATORS] == 1:
                     state += 1
                 else:
                     state -= 1
+
+        # Node mutates it's strategy with mutation rate u
+        # according to the mutation matrix
+        contribute_prob = mutation_matrix[k][k + 1]
+        defect_prob = mutation_matrix[k][k - 1]
+        mutation_prob = random.random()
+        if G.nodes[social_node][COOPERATORS] == 1:
+            if mutation_prob <= defect_prob:
+                G.nodes[social_node][COOPERATORS] = 0
+                state -= 1
+        else:
+            if mutation_prob <= contribute_prob:
+                G.nodes[social_node][COOPERATORS] = 1
+                state += 1
 
     return state
 
@@ -403,6 +421,9 @@ def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
     is smaller than epsilon for convergence_threshold iterations
     
     Returns state = overall variation in the number of contributors or defectors"""
+    num_players = N(G) # TODO - N(G) is just a placeholder right now
+    mutation_matrix = tridiagonal_matrix_algorithm(G, risk, model, num_players)
+    
     state = 0
     converged = False
     timesCloseToConvergence = 0
@@ -429,6 +450,66 @@ def iterative_stochastic_birth_death(G, risk, model, pop_type=FINITE_WELL_MIXED,
 
     return state
 
+
+
+def prob_increase_and_decrease_number_Cs_by_one(G, risk, model, k, pop_type=FINITE_WELL_MIXED, increase=True):
+    """Probability of increase and decrease in the number of contributors by one:
+
+    Returns the probability of an increase and decrease in the number of contributors by one"""
+    k_over_Z = k / Z
+    aux_term = (Z - k) / Z
+    sign = 1
+    if not increase:
+        sign = -1
+
+    fitness_c, fitness_d, delta = fitness(fraction_of_contributors(G), risk, model, pop_type=pop_type)
+    return k_over_Z * aux_term * (1 + math.exp(sign * (fitness_c, fitness_d)))**(-1)
+
+
+
+def prob_contributor_increase_mutation(G, risk, model, k, pop_type=FINITE_WELL_MIXED):
+    """Probability of contributor increase due to mutation:
+
+    Returns the probability of an increase in contributors due to mutation"""
+
+    return ( (1 - u) 
+            * prob_increase_and_decrease_number_Cs_by_one(G, risk, model, k, pop_type=pop_type, increase=True)
+            + u * (Z - k) / Z
+    )
+
+
+def prob_contributor_decrease_mutation(G, risk, model, k, pop_type=FINITE_WELL_MIXED):
+    """Probability of contributor decrease due to mutation:
+
+    Returns the probability of a decrease in contributors due to mutation"""
+
+    return ( (1 - u) 
+            * prob_increase_and_decrease_number_Cs_by_one(G, risk, model, k, pop_type=pop_type, increase=False)
+            + u * k / Z
+    )
+
+
+def tridiagonal_matrix_algorithm(G, risk, model, num_players):
+    transition_matrix = np.zeros((num_players, num_players))
+
+    for i in range(num_players):
+        k = i
+        pk_k_plus_1 = prob_contributor_increase_mutation(G, risk, model, k)
+        pk_k_minus_1 = prob_contributor_decrease_mutation(G, risk, model, k)
+        pk_k = 1 - pk_k_minus_1 - pk_k_plus_1
+        for j in range(num_players):
+            if i == j:
+                transition_matrix[i][j] = pk_k
+            elif i == (j + 1):
+                transition_matrix[i][j] = pk_k_plus_1
+            elif i == (j - 1):
+                transition_matrix[i][j] = pk_k_minus_1
+            else:
+                transition_matrix[i][j] = 0
+
+    transition_matrix = np.linalg.inv(transition_matrix)
+
+    return transition_matrix
 
 
 def setup(N, model):
