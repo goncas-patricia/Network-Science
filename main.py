@@ -397,7 +397,7 @@ def stochastic_birth_death(G, risk, model, mutation_matrix, pop_type=FINITE_WELL
                     state -= 1
                     k -= 1
 
-        # Node mutates it's strategy with mutation rate u
+        # Node mutates its strategy with mutation rate u
         # according to the mutation matrix
         contribute_prob = mutation_matrix[k][k + 1]
         defect_prob = mutation_matrix[k][k - 1]
@@ -467,12 +467,12 @@ def prob_increase_and_decrease_number_Cs_by_one(G, risk, model, k, pop_type=FINI
     Returns the probability of an increase and decrease in the number of contributors by one"""
     k_over_Z = k / Z
     aux_term = (Z - k) / Z
-    sign = 1
+    sign = -1
     if not increase:
-        sign = -1
+        sign = 1
 
     fitness_c, fitness_d, delta = fitness(fraction_of_contributors(G), risk, model, pop_type=pop_type)
-    return k_over_Z * aux_term * (1 + math.exp(sign * (fitness_c, fitness_d)))**(-1)
+    return k_over_Z * aux_term * (1 + math.exp(sign * (fitness_c - fitness_d)))**(-1)
 
 
 
@@ -509,9 +509,9 @@ def tridiagonal_matrix_algorithm(G, risk, model, num_players):
         for j in range(num_players):
             if i == j:
                 transition_matrix[i][j] = pk_k
-            elif i == (j + 1):
+            elif (i + 1) == j:
                 transition_matrix[i][j] = pk_k_plus_1
-            elif i == (j - 1):
+            elif (i - 1) == j:
                 transition_matrix[i][j] = pk_k_minus_1
             else:
                 transition_matrix[i][j] = 0
@@ -634,7 +634,7 @@ def evolution_gamma_with_gradient_of_selection():
     internal_roots = []
     x = sp.symbols('x')
 
-    # Make sure we can solve this (if needed)
+    # Make sure we can solve this (if needed    )
     for risk in range(1, len(r)):
         for Mi in Mabs:  
             try:
