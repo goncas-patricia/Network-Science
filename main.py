@@ -24,7 +24,7 @@ import math
 # TASKS
 # mudar o cost-benefit para N-player
 # introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
-# último parágrafo da parte Evolutionary Dynamics in Finite Well-Mixed Populations dos métodos
+# Feito/para discutir: último parágrafo da parte Evolutionary Dynamics in Finite Well-Mixed Populations dos métodos
 # Última parte do paper (Evolutionary Dynamics in Structured Populations)
 
 #################
@@ -210,22 +210,25 @@ def fitness(x, risk, model, pop_type=INFINITE_WELL_MIXED):
         if pop_type == INFINITE_WELL_MIXED:
             for k in range(numVertices):
                 binomial = math.comb(numVertices - 1, k)
-                payoffD = payoffD(x*numVertices, m*numVertices, risk)
-                payoffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
+                poffD = payoffD(x*numVertices, m*numVertices, risk)
+                poffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
                 mult = (x ** k) * ((1 - x) ** (numVertices - 1 - k))
-                fC += binomial * mult * payoffD
-                fD += binomial * mult * payoffC
+                fC += binomial * mult * poffD
+                fD += binomial * mult * poffC
         elif pop_type == FINITE_WELL_MIXED:
             for k in range(numVertices):
                 j = k + 1
                 while j > k:
                     j = int(random.random()*numVertices)
                 binomialC = math.comb(k, j) * math.comb(Z - k - 1, numVertices - j - 1)
-                binomialD = math.comb(k - 1, j) * math.comb(Z - k, numVertices - j - 1)
-                payoffD = payoffD(x*numVertices, m*numVertices, risk)
-                payoffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
-                fC += binomialC * payoffD
-                fD += binomialD * payoffC
+                if k == 1 or j == 0: # Note: I added this
+                    binomialD = 0
+                else:
+                    binomialD = math.comb(k - 1, j) * math.comb(Z - k, numVertices - j - 1)
+                poffD = payoffD(x*numVertices, m*numVertices, risk)
+                poffC = payoffD(x*numVertices + 1, m*numVertices, risk) - c*b
+                fC += binomialC * poffD
+                fD += binomialD * poffC
 
             binomialMain = math.comb(Z - 1, numVertices - 1)
             fC /= binomialMain
@@ -501,6 +504,9 @@ def prob_contributor_decrease_mutation(G, risk, model, k, pop_type=FINITE_WELL_M
 def tridiagonal_matrix_algorithm(G, risk, model, num_players):
     transition_matrix = np.zeros((num_players, num_players))
 
+    # The sum of each row of the tridiagonal matrix should be 1 (think about it)
+    # num_players should be the Z+1 states
+
     for i in range(num_players):
         k = i
         pk_k_plus_1 = prob_contributor_increase_mutation(G, risk, model, k)
@@ -520,6 +526,30 @@ def tridiagonal_matrix_algorithm(G, risk, model, num_players):
 
     return transition_matrix
 
+def stationary_distribution(G, risk, model, num_players):
+    '''
+    Compute the stationary distribution P(k/Z)
+    of the complete Markov chain with Z + 1 states
+    (as shown in Figs. 1C, 2A and 2B).
+    '''
+
+    S = tridiagonal_matrix_algorithm(G, risk, model, num_players)
+    print("S: ", S)
+    # Note: discuss if .T should be next to S
+    eigenvalues, eigenvectors = np.linalg.eig(S)
+    print("eigenvalues: ", eigenvalues)
+    print("eigenvectors: ", eigenvectors)
+    print(eigenvalues.shape)
+    print(eigenvectors.shape)
+
+    # Not working: I'll see why later!
+
+    # Turn the eigenvector (with eigenvalue close to 1) elements into probabilites
+    target_eigenvector = eigenvectors[:, np.where(np.isclose(eigenvalues, 1))].real
+    print("target_eigenvector: ", target_eigenvector)
+    stationary_distribution = target_eigenvector / sum(target_eigenvector) 
+    print("stationary_distribution: ", stationary_distribution)
+    return stationary_distribution
 
 def setup(N, model):
     global G
@@ -583,6 +613,8 @@ def evolution_k_with_N():
 
 
 def evolution_gradient_of_selection_with_x(model):
+    """ Gives us figure 1A/1.A.
+    """
     setup(N_values[10], ERDOS_RENYI)
 
     # Evaluate function and create the plot
@@ -608,7 +640,7 @@ def internal_roots(x, risk, Ni, Mi):
     return fsolve(equation, .5)
 
 def evolution_gamma_with_gradient_of_selection():
-    """ Gives us figure 1.B.
+    """ Gives us figure 1B/1.B.
         It also retrieves the internal roots of the gradient of selection.
     """
     Ni = N_values[10]
@@ -645,6 +677,26 @@ def evolution_gamma_with_gradient_of_selection():
             except: 
                 pass
 
+def evolution_stationary_distribution_with_x(model):
+    """ Gives us figure 1C/1.C.
+    """
+    setup(N_values[10], ERDOS_RENYI)
+
+    # Evaluate function and create the plot
+    x_vals = [i / 1000 for i in range(1001)] 
+
+    #for risk in r:
+        #plt.plot(x_vals, stationary_distribution(G, risk, model, N_values[10]), label = risk)
+    stationary_distribution(G, r[2], model, N_values[10])
+    
+    plt.legend()
+    plt.xlabel('x (Fraction of cooperators)')
+    plt.ylabel('Gradient of selection')
+    plt.title('Gradient of selection vs. x')
+
+    plt.show()
+
 #evolution_k_with_N()
 #evolution_gradient_of_selection_with_x('PD')
-evolution_gamma_with_gradient_of_selection()
+#evolution_gamma_with_gradient_of_selection()
+evolution_stationary_distribution_with_x('PD')
