@@ -215,7 +215,7 @@ def fitness(x, risk, model, N, M, pop_type=INFINITE_WELL_MIXED):
                 fC += binomial * mult * poffD
                 fD += binomial * mult * poffC
         elif pop_type == FINITE_WELL_MIXED:
-            for j in range(max(N, x*Z)):
+            for j in range(min(N, x*Z)):
                 binomialC = math.comb(k, j) * math.comb(Z - k - 1, N - j - 1)
                 binomialD = math.comb(k - 1, j) * math.comb(Z - k, N - j - 1)
                 poffD = payoffD(x*Z, M, risk)
