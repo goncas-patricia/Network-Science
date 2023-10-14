@@ -21,16 +21,22 @@ import math
 # - Observações dos resultados empíricos
 
 
+# Notas
+# risk loss tem erro
+# prestar atenção à diferença entre Z e N
+# k has differents meanings on infinite (number of k in N) vs finite (number of k in Z)
+
+
 # TASKS
 # mudar o cost-benefit para N-player
 # introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
-# Feito/para discutir: último parágrafo da parte Evolutionary Dynamics in Finite Well-Mixed Populations dos métodos
 # Última parte do paper (Evolutionary Dynamics in Structured Populations)
-# Prestar atenção à diferença entre Z e N
+
 
 #################
 ### Constants ###
 #################
+
 
 SEED = 7
 INITIAL_COOPERATOR_PROB = 0.5
@@ -53,12 +59,14 @@ STRUCUTED_POPULATION = 'structured_population'
 ### Mischelaneous ###
 #####################
 
+
 random.seed(SEED)
 
 
 ###################
 ### Global Vars ###
 ###################
+
 
 # Nodes, thresholds, group size
 N_values = [4, 8, 12, 24, 48] 
@@ -77,9 +85,11 @@ beta = 0.5
 u = 0.01
 mutation_matrix = []
 
-##################
-### Functions ####
-##################
+
+############################################################
+### Functions: network characteristics and risk of loss ####
+############################################################
+
 
 def set_all_node_attributes(G, attr_name, attr_value):
     for node in G.nodes():
@@ -107,18 +117,24 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
             G.nodes[node][attr_name] = defector
 
 
-def theta(x):
-    """Heaviside Step function:
-    
-    1 if x >= 0, 0 otherwise"""
-    return 1 if x >= 0 else 0
+def setup(Z, model):
+    global G
+    if model == BARABASI_ALBERT:
+        # Scale-free network (barabasi-albert)
+        G = nx.barabasi_albert_graph(Z, Z//2, SEED)  
+    elif model == ERDOS_RENYI:
+        # Random Network (erdos-renyi)
+        G = nx.erdos_renyi_graph(Z, 1, SEED)
+    elif model == COMPLETE:
+        # Classic complete connected graph 
+        G = nx.classic.complete_graph(Z)
 
-
-# Group of size N and k Cs
-def payoffD(k, M, r):
-    """Returns the payoff of a single C in a group of K Cs
-    M < N is the coordination threshold necessary to achieve a collective benefit"""
-    return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
+    # Setup with 50% Ds and 50% Cs
+    set_node_bool_attribute_with_prob_k(G, COOPERATORS, INITIAL_COOPERATOR_PROB) 
+    # Game participants each have an initial endowment b
+    set_all_node_attributes(G, ENDOWMENT, b)
+    # Cs contribute a fraction c of their endowment, whereas Ds do not contribute
+    set_behavior_node_attributes(G, CONTRIBUTION, c, 0)
 
 
 def Z(G):
@@ -137,7 +153,7 @@ def number_of_cooperators(G):
     return len(cooperators(G))
 
 
-def fraction_of_contributors(G):
+def x(G):
     """Fraction of contributors in the population:
 
     returns number of cooperators / number of nodes"""
@@ -148,21 +164,36 @@ def fraction_of_contributors(G):
 def fraction_of_defectors(G):
     """Fraction of defectors in the population
     returns 1 - fraction_of_contributors(G)"""
-    return 1 - fraction_of_contributors(G)
+    return 1 - x(G)
 
 
-def risk_loss(G, risk, M):
-    """Risk loss function:
+# def risk_loss(risk, M):
+#     """Risk loss function:
 
-    If the number of cooperators is less than the threshold M,
-    then all nodes lose their endowment with probability risk"""
-    if number_of_cooperators(G) < M:
-        if random.random() <= risk:
-            for node in G.nodes():
-                G.nodes[node][ENDOWMENT] = 0
+#     If the number of cooperators is less than the threshold M,
+#     then all nodes lose their endowment with probability risk"""
+#     if number_of_cooperators(G) < M:
+#         if random.random() <= risk:
+#             for node in G.nodes():
+#                 G.nodes[node][ENDOWMENT] = 0
+
+# def risk_loss(risk, N, M, k_in_N):
+#     """Risk loss function:
+
+#     If a group of size N does not contain at least M Cs, 
+#     all members will lose their remaining endowments with a probability r"""
+#     if k_in_N < M:
+#         if random.random() <= risk:
+#             for node in G.nodes():
+#                 G.nodes[node][ENDOWMENT] = 0
 
 
-def gradient_of_selection(x, risk, model, N, M, pop_type=INFINITE_WELL_MIXED):
+######################################################
+### Functions: gradient of selection, fitnesses ######
+######################################################
+
+
+def gradient_of_selection(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED):
     """Gradient of selection:
 
     Replicator equation
@@ -171,82 +202,91 @@ def gradient_of_selection(x, risk, model, N, M, pop_type=INFINITE_WELL_MIXED):
     if pop_type == INFINITE_WELL_MIXED:
         return x * (1 - x) * fitness_delta(x, risk, N, M, pop_type)
     elif pop_type == FINITE_WELL_MIXED:
-        return x * (1 - x) * np.tanh(0.5 * beta * fitness(x, risk, model, N, M, pop_type)[2])
+        return x * (1 - x) * np.tanh(0.5 * beta * fitness_delta(x, risk, model, N, M, k, pop_type))
+    
 
-
-def fitness(x, risk, model, N, M, pop_type=INFINITE_WELL_MIXED):
+def fitness(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 500):
     """Fitness for Cs and Ds
-
-    First: 2-Player for each model
-    
-    Second: N-Player for the model present in the paper
-    
-    
-    Used only for a finite number of nodes.
     """
 
-    # Fitness
+    if model == STAG_HUNT:
+        fC = 1
+        fD = 0
+
+    elif model == SNOW_DRIFT:
+        fC = 1
+        fD = 0
+
+    elif model == PRISONER_DILEMMA:
+        if pop_type == INFINITE_WELL_MIXED:
+            fC, fD = fitness_infinite_well_mixed(x, risk, N, M, k)
+        elif pop_type == FINITE_WELL_MIXED:
+            fC, fD = fitness_finite_well_mixed(Z, risk, N, M, k)
+
+    return [fC, fD, fC - fD]
+
+
+def fitness_C(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED):
+    return fitness(x, risk, model, N, M, k, pop_type)[0]
+
+
+def fitness_D(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED):
+    return fitness(x, risk, model, N, M, k, pop_type)[1]
+    
+
+def fitness_delta(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED):
+    """Fitness delta:
+
+    m = threshold of cooperators
+    pop_type = type of population (infinite well-mixed or finite well-mixed)
+
+    Fitness of cooperators - fitness of defectors. Based on the formulas provided in the paper:
+
+    Risk of collective failure provides an escape from the tragedy of the commons,
+    Francisco C. Santos, Jorge M. Pacheco"""
+    if pop_type == INFINITE_WELL_MIXED:
+        return fitness_delta_infinite_well_mixed(x, risk, N, M)
+    elif pop_type == FINITE_WELL_MIXED:
+        return fitness(x, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED)[2]
+
+
+def payoffD(k, M, r):
+    """Returns the payoff of a single C in a group of K Cs
+    M < N is the coordination threshold necessary to achieve a collective benefit"""
+    return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
+
+
+def theta(x):
+    """Heaviside Step function:
+    
+    1 if x >= 0, 0 otherwise"""
+    return 1 if x >= 0 else 0
+
+
+#########################################
+### Functions: infinite well-mixed ######
+#########################################
+
+
+def fitness_infinite_well_mixed(x, risk, N, M, k):
+    """ Computes fitness C, fitness D and fitness Delta for infinite well-mixed populations
+        The k stands for the k Cs in the group (of size N)
+    """
     fC = 0
     fD = 0
 
-    if model == 'H':
-        R = b
-        T = b-c
-        S = b-c
-        P = 0
-    elif model == STAG_HUNT:
-        R = b
-        T = c
-        S = -c
-        P = 0
-    elif model == SNOW_DRIFT:
-        R = 1
-        T = b+c
-        S = c
-        P = 0
-    elif model == PRISONER_DILEMMA:
-        Z = Z(G)
-        if pop_type == INFINITE_WELL_MIXED:
-            for k in range(N):
-                binomial = math.comb(N - 1, k)
-                poffD = payoffD(x*Z, M, risk)
-                poffC = payoffD(x*Z + 1, M, risk) - c*b
-                mult = (x ** k) * ((1 - x) ** (N - 1 - k))
-                fC += binomial * mult * poffD
-                fD += binomial * mult * poffC
-        elif pop_type == FINITE_WELL_MIXED:
-            for j in range(min(N, x*Z)):
-                binomialC = math.comb(k, j) * math.comb(Z - k - 1, N - j - 1)
-                binomialD = math.comb(k - 1, j) * math.comb(Z - k, N - j - 1)
-                poffD = payoffD(x*Z, M, risk)
-                poffC = payoffD(x*Z + 1, M, risk) - c*b
-                fC += binomialC * poffD
-                fD += binomialD * poffC
+    for k in range(N):
+        binomial = math.comb(N - 1, k)
+        piD = payoffD(k, M, risk)
+        piC = payoffD(k + 1, M, risk) - c*b
+        mult = (x ** k) * ((1 - x) ** (N - 1 - k))
+        fC += binomial * mult * piC
+        fD += binomial * mult * piD
 
-            binomialMain = math.comb(Z - 1, N - 1)
-            fC /= binomialMain
-            fD /= binomialMain
-
-    fitness = [fC, fD, fC - fD]
-
-    return fitness
+    return fC, fD
 
 
-def cost_to_risk_ratio(i):
-    """Cost to risk ratio:
-
-    Cost to risk ratio of the game
-    
-    i = index of the risk value in the risk array r = [0.00, 0.25, 0.50, 0.75, 1.00]"""
-    if type(i) != int:
-        raise TypeError("cost_to_risk_ratio: i must be an integer")
-    if i < 0 or i > len(r):
-        raise ValueError("cost_to_risk_ratio: i must be between 0 and len(r)")
-
-    return c / r[i]
-
-
-def _aux_infinite_well_mixed(x, N, M):
+def gamma(x, N, M):
     """Auxiliary function for the infinite well-mixed population fitness delta"""
     return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
 
@@ -260,27 +300,41 @@ def fitness_delta_infinite_well_mixed(x, risk, N, M):
     
     Used for an infinite number of nodes.
     """
-    return b * (_aux_infinite_well_mixed(x, N, M)*risk - c)
+    return b * (gamma(x, N, M)*risk - c)
 
 
-def fitness_delta(x, risk, N, M, pop_type=INFINITE_WELL_MIXED):
-    """Fitness delta:
-
-    m = threshold of cooperators
-    pop_type = type of population (infinite well-mixed or finite well-mixed)
-
-    Fitness of cooperators - fitness of defectors. Based on the formulas provided in the paper:
-
-    Risk of collective failure provides an escape from the tragedy of the commons,
-    Francisco C. Santos, Jorge M. Pacheco"""
-    if pop_type == INFINITE_WELL_MIXED:
-        return fitness_delta_infinite_well_mixed(x, risk, N, M)
-    elif pop_type == FINITE_WELL_MIXED:
-        pop_size = Z(G) # pop_size is called Z in the paper
-        pass # TODO implement finite well-mixed population
+#######################################
+### Functions: finite well-mixed ######
+#######################################
 
 
-def stochastic_birth_death_over_all_nodes(G, risk, model, N, M, pop_type=FINITE_WELL_MIXED):
+def fitness_finite_well_mixed(Z, risk, N, M, k):
+    """ Computes fitness C, fitness D and fitness Delta for finite well-mixed populations of size Z
+        The k stands for the k Cs in the population (of size Z)
+    """
+
+    fC = 0
+    fD = 0
+
+    binomialMain = math.comb(Z - 1, N - 1)
+    piD = payoffD(k, M, risk)
+    piC = payoffD(k + 1, M, risk) - c*b
+    for j in range(min(N, k)):
+        binomialC = math.comb(k, j) * math.comb(Z - k - 1, N - j - 1)
+        binomialD = math.comb(k - 1, j) * math.comb(Z - k, N - j - 1)
+        fC += binomialC * piD
+        fD += binomialD * piC
+    fC /= binomialMain
+    fD /= binomialMain
+    return fC, fD
+
+
+###############################################################
+### Functions: stochastic effects (mutations, imitation) ######
+###############################################################
+
+
+def stochastic_birth_death_over_all_nodes(x, risk, model, N, M, pop_type=FINITE_WELL_MIXED):
     """Stochastic birth-death process over all nodes:
     
     Under pair-wise comparison, each individual i adopts the
@@ -301,7 +355,6 @@ def stochastic_birth_death_over_all_nodes(G, risk, model, N, M, pop_type=FINITE_
         # Select a random node
         random_node = random.choice(list(nodes))
 
-        x = fraction_of_contributors(G)
         fitnessContributor, fitnessDefector, delta = fitness(x, risk, model, N, M, pop_type=pop_type)
         # TODO - chamar sempre fitness() aqui parece computacionalmente caro
         # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
@@ -413,7 +466,7 @@ def stochastic_birth_death(G, risk, model, N, M, mutation_matrix, pop_type=FINIT
     return state
 
 
-def iterative_stochastic_birth_death(G, risk, model, N, M, pop_type=FINITE_WELL_MIXED,
+def iterative_stochastic_birth_death(G, Z, x, risk, model, N, M, pop_type=FINITE_WELL_MIXED,
                                      convergence_threshold=10, epsilon=0.0001, 
                                      max_iterations=math.inf):
     """Iterative stochastic birth-death process:
@@ -427,8 +480,8 @@ def iterative_stochastic_birth_death(G, risk, model, N, M, pop_type=FINITE_WELL_
     is smaller than epsilon for convergence_threshold iterations
     
     Returns state = overall variation in the number of contributors or defectors"""
-    Z = Z(G) # TODO - Z(G) is just a placeholder right now
-    mutation_matrix = tridiagonal_matrix_algorithm(G, risk, model, Z)
+
+    mutation_matrix = tridiagonal_matrix_algorithm(Z, x, risk, model)
     
     state = 0
     converged = False
@@ -457,56 +510,22 @@ def iterative_stochastic_birth_death(G, risk, model, N, M, pop_type=FINITE_WELL_
     return state
 
 
-
-def prob_increase_and_decrease_number_Cs_by_one(G, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED, increase=True):
-    """Probability of increase and decrease in the number of contributors by one:
-
-    Returns the probability of an increase and decrease in the number of contributors by one"""
-    k_over_Z = k / Z
-    aux_term = (Z - k) / Z
-    sign = -1
-    if not increase:
-        sign = 1
-
-    fitness_c, fitness_d, delta = fitness(fraction_of_contributors(G), risk, model, N, M, pop_type=pop_type)
-    return k_over_Z * aux_term * (1 + math.exp(sign * (fitness_c - fitness_d)))**(-1)
+##########################################
+### Functions: behavioral mutations ######
+##########################################
 
 
-
-def prob_contributor_increase_mutation(G, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED):
-    """Probability of contributor increase due to mutation:
-
-    Returns the probability of an increase in contributors due to mutation"""
-
-    return ( (1 - u) 
-            * prob_increase_and_decrease_number_Cs_by_one(G, risk, model, N, M, k, pop_type=pop_type, increase=True)
-            + u * (Z - k) / Z
-    )
-
-
-def prob_contributor_decrease_mutation(G, risk, model, k, pop_type=FINITE_WELL_MIXED):
-    """Probability of contributor decrease due to mutation:
-
-    Returns the probability of a decrease in contributors due to mutation"""
-
-    return ( (1 - u) 
-            * prob_increase_and_decrease_number_Cs_by_one(G, risk, model, k, pop_type=pop_type, increase=False)
-            + u * k / Z
-    )
-
-
-def tridiagonal_matrix_algorithm(G, risk, model, Z):
-    transition_matrix = np.zeros((Z, Z))
+def tridiagonal_matrix_algorithm(Z, x, risk, model):
+    transition_matrix = np.zeros((Z + 1, Z + 1))
 
     # The sum of each row of the tridiagonal matrix should be 1 (think about it)
-    # num_players should be the the transition matrix for Z+1 states
 
-    for i in range(Z):
+    for i in range(Z + 1):
         k = i
-        pk_k_plus_1 = prob_contributor_increase_mutation(G, risk, model, k)
-        pk_k_minus_1 = prob_contributor_decrease_mutation(G, risk, model, k)
+        pk_k_plus_1 = prob_contributor_increase_mutation(x, risk, model, k)
+        pk_k_minus_1 = prob_contributor_decrease_mutation(x, risk, model, k)
         pk_k = 1 - pk_k_minus_1 - pk_k_plus_1
-        for j in range(Z):
+        for j in range(Z + 1):
             if i == j:
                 transition_matrix[i][j] = pk_k
             elif (i + 1) == j:
@@ -520,15 +539,51 @@ def tridiagonal_matrix_algorithm(G, risk, model, Z):
 
     return transition_matrix
 
-def stationary_distribution(G, risk, model, Z):
+
+def prob_contributor_increase_mutation(x, Z, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED):
+    """Probability of contributor increase due to mutation:
+
+    Returns the probability of an increase in contributors due to mutation"""
+
+    return ( (1 - u) 
+            * prob_increase_and_decrease_number_Cs_by_one(x, risk, model, N, M, k, pop_type=pop_type, increase=True)
+            + u * (Z - k) / Z
+    )
+
+
+def prob_contributor_decrease_mutation(x, Z, risk, model, k, pop_type=FINITE_WELL_MIXED):
+    """Probability of contributor decrease due to mutation:
+
+    Returns the probability of a decrease in contributors due to mutation"""
+
+    return ( (1 - u) 
+            * prob_increase_and_decrease_number_Cs_by_one(x, risk, model, k, pop_type=pop_type, increase=False)
+            + u * k / Z
+    )
+
+
+def prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED, increase=True):
+    """Probability of increase and decrease in the number of contributors by one:
+
+    Returns the probability of an increase and decrease in the number of contributors by one"""
+    k_over_Z = k / Z
+    aux_term = (Z - k) / Z
+    sign = -1
+    if not increase:
+        sign = 1
+
+    fitness_C , fitness_D = fitness(x, risk, model, N, M, k, pop_type=pop_type, Z=Z)
+    return k_over_Z * aux_term * (1 + math.exp(sign * (fitness_C - fitness_D)))**(-1)
+
+
+def stationary_distribution(Z, x, risk, model):
     '''
     Compute the stationary distribution P(k/Z)
     of the complete Markov chain with Z + 1 states
     (as shown in Figs. 1C, 2A and 2B).
     '''
 
-    S = tridiagonal_matrix_algorithm(G, risk, model, Z)
-    #print("S: ", S)
+    S = tridiagonal_matrix_algorithm(Z, x, risk, model)
     # Note: discuss if .T should be next to S
     eigenvalues, eigenvectors = np.linalg.eig(S)
 
@@ -542,24 +597,125 @@ def stationary_distribution(G, risk, model, Z):
     stationary_distribution = target_eigenvector / sum(target_eigenvector) 
     return stationary_distribution
 
-def setup(N, model):
-    global G
-    if model == BARABASI_ALBERT:
-        # Scale-free network (barabasi-albert)
-        G = nx.barabasi_albert_graph(N, N//2, SEED)  
-    elif model == ERDOS_RENYI:
-        # Random Network (erdos-renyi)
-        G = nx.erdos_renyi_graph(N, 1, SEED)
-    elif model == COMPLETE:
-        # Complete/fully connected graph 
-        G = nx.classic.complete_graph(N)
 
-    # Setup with 50% Ds and 50% Cs
-    set_node_bool_attribute_with_prob_k(G, COOPERATORS, INITIAL_COOPERATOR_PROB) 
-    # Game participants each have an initial endowment b
-    set_all_node_attributes(G, ENDOWMENT, b)
-    # Cs contribute a fraction c of their endowment, whereas Ds do not contribute
-    set_behavior_node_attributes(G, CONTRIBUTION, c, 0)
+############################################
+### Functions: related to the figures ######
+############################################
+
+
+def cost_to_risk_ratio(risk):
+    """Cost to risk ratio:
+
+    Cost to risk ratio of the game
+    
+    i = index of the risk value in the risk array r = [0.00, 0.25, 0.50, 0.75, 1.00]"""
+    if risk == 0:
+        raise TypeError("cost_to_risk_ratio: risk must be different than 0")
+
+    return c / risk
+
+
+def internal_roots(x, risk, N, M):
+    equation = abs(cost_to_risk_ratio(risk) - gamma(x, N, M))
+    return fsolve(equation, .5)
+
+
+#############################
+### Functions: figures ######
+#############################
+
+
+def evolution_k_with_N():
+    """ Create an animation in which N grows
+    """
+    # Create a figure for the animation
+    fig = plt.figure(figsize=(12, 6))
+
+    # Create the animation
+    animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
+
+    plt.show()
+
+
+def evolution_gradient_of_selection_with_x(model):
+    """ Gives us figure 1A/1.A.
+        Infinite well-mixed population.
+    """
+
+    # Set the constants and variable x
+    N = 6
+    M = 3
+    x_vals = [i / 1000 for i in range(1001)] 
+
+    for risk in r:
+        plt.plot(x_vals, [gradient_of_selection(x, risk, model, N, M, N*x, INFINITE_WELL_MIXED) for x in x_vals], label = risk)
+    
+    plt.legend()
+    plt.xlabel('x (Fraction of cooperators)')
+    plt.ylabel('Gradient of selection')
+    plt.title('Gradient of selection vs. x')
+
+    plt.show()
+
+def evolution_gamma_with_gradient_of_selection():
+    """ Gives us figure 1B/1.B.
+        Infinite well-mixed population.
+        It also retrieves the internal roots of the gradient of selection.
+    """
+    N = 6
+
+    # Evaluate function and create the plot
+    x_vals = [i / 1000 for i in range(1001)]
+
+    for M in M_values:
+        plt.plot(x_vals, [gamma(x, N, M) for x in x_vals], label = f'M = {M}')
+
+    for risk in r:
+        plt.plot(x_vals, cost_to_risk_ratio(risk), label=f'Risk = risk')   
+
+    plt.legend()
+    plt.xlabel('Gradient of selection')
+    plt.ylabel('Gamma')
+    plt.title(f'Gamma vs gradient of selection (N = {N})')
+
+    #plt.show()
+
+    internal_roots = []
+    x = sp.symbols('x')
+
+    # Make sure we can solve this (if needed)
+    for risk in r:
+        for M in M_values:  
+            try:
+                print("Internal roots: I'm trying to find them.")
+                root = internal_roots(x, risk, N, M)
+                internal_roots.append((M, risk, root))
+                print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
+            except: 
+                pass
+
+def evolution_stationary_distribution_with_x(model):
+    """ Gives us figure 1C/1.C.
+    """
+
+    # Estamos a considerar Z N_values[10]
+    # Atenção: matrix S deve ter Z+1 estados (0 cooperadores até N)
+    Z = Z(G)
+    setup(Z, ERDOS_RENYI)
+
+    # Evaluate function and create the plot
+    x_vals = [(i+1)/Z for i in range(Z)] 
+    print(stationary_distribution(G, r[2], model, Z))
+
+    for risk in r:
+        plt.plot(x_vals, [stationary_distribution(G, risk, model, Z)[idx] for idx in range(len(x_vals))], label = risk)
+    
+    plt.legend()
+    plt.xlabel('x (Fraction of cooperators)')
+    plt.ylabel('Gradient of selection')
+    plt.title('Gradient of selection vs. x')
+
+    plt.show()
 
 
 def update(frame):
@@ -593,103 +749,6 @@ def update(frame):
     plt.show()
 
 
-def evolution_k_with_N():
-    # Create a figure for the animation
-    fig = plt.figure(figsize=(12, 6))
-
-    # Create the animation
-    animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
-
-    plt.show()
-
-
-def evolution_gradient_of_selection_with_x(model):
-    """ Gives us figure 1A/1.A.
-    """
-    setup(N_values[10], ERDOS_RENYI)
-
-    # Evaluate function and create the plot
-    x_vals = [i / 1000 for i in range(1001)] 
-
-    for risk in r:
-        plt.plot(x_vals, [gradient_of_selection(x, risk, model) for x in x_vals], label = risk)
-    
-    plt.legend()
-    plt.xlabel('x (Fraction of cooperators)')
-    plt.ylabel('Gradient of selection')
-    plt.title('Gradient of selection vs. x')
-
-    plt.show()
-
-def gamma(x, N, M):
-    binomial = math.comb(N - 1, M - 1)
-    gamma = binomial * (x ** (M - 1)) * ((1 - x) ** (N - M))
-    return gamma
-
-def internal_roots(x, risk, Ni, Mi):
-    equation = abs(cost_to_risk_ratio(risk) - gamma(x, Ni, Mi))
-    return fsolve(equation, .5)
-
-def evolution_gamma_with_gradient_of_selection():
-    """ Gives us figure 1B/1.B.
-        It also retrieves the internal roots of the gradient of selection.
-    """
-    Ni = N_values[10]
-    Mabs = [int(Ni * m) for m in M_values[1:]]
-    setup(Ni, ERDOS_RENYI)
-
-    # Evaluate function and create the plot
-    x_vals = [i / 1000 for i in range(1001)]
-
-    for Mi in [1] + Mabs:
-        plt.plot(x_vals, [gamma(x, Ni, int(Mi)) for x in x_vals], label = f'm={Mi}')
-
-    for risk in range(1,len(r)):
-        plt.plot(x_vals, [cost_to_risk_ratio(risk) for x in x_vals], label=f'Risk={r[risk]}')   
-
-    plt.legend()
-    plt.xlabel('Gradient of selection')
-    plt.ylabel('Gamma')
-    plt.title(f'Gamma vs gradient of selection (N = {Ni})')
-
-    #plt.show()
-
-    internal_roots = []
-    x = sp.symbols('x')
-
-    # Make sure we can solve this (if needed    )
-    for risk in range(1, len(r)):
-        for Mi in Mabs:  
-            try:
-                print("I tried")
-                root = internal_roots(x, risk, Ni, Mi)
-                internal_roots.append((Mi, risk, root))
-                print("Roots:", root,"\n")
-            except: 
-                pass
-
-def evolution_stationary_distribution_with_x(model):
-    """ Gives us figure 1C/1.C.
-    """
-
-    # Estamos a considerar Z N_values[10]
-    # Atenção: matrix S deve ter Z+1 estados (0 cooperadores até N)
-    Z = Z(G)
-    setup(Z, ERDOS_RENYI)
-
-    # Evaluate function and create the plot
-    x_vals = [(i+1)/Z for i in range(Z)] 
-    print(stationary_distribution(G, r[2], model, Z))
-
-    for risk in r:
-        plt.plot(x_vals, [stationary_distribution(G, risk, model, Z)[idx] for idx in range(len(x_vals))], label = risk)
-    
-    plt.legend()
-    plt.xlabel('x (Fraction of cooperators)')
-    plt.ylabel('Gradient of selection')
-    plt.title('Gradient of selection vs. x')
-
-    plt.show()
 
 #evolution_k_with_N()
 #evolution_gradient_of_selection_with_x('PD')
