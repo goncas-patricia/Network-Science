@@ -209,7 +209,7 @@ def fitness(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 500):
         fC = 1
         fD = 0
 
-    elif model == PRISONER_DILEMMA:
+    elif model == PRISONER_DILEMMA or "PD":
         if pop_type == INFINITE_WELL_MIXED:
             fC, fD = fitness_infinite_well_mixed(x, risk, N, M, k)
         elif pop_type == FINITE_WELL_MIXED:
@@ -465,8 +465,8 @@ def tridiagonal_matrix_algorithm(Z, N, M, risk, model, b=.5):
 
     for k in range(Z):
         x = k/Z
-        pk_k_plus_1 = prob_contributor_increase_mutation(x, Z, risk, model, N, M, k, b)
-        pk_k_minus_1 = prob_contributor_decrease_mutation(x, Z, risk, model, N, M, k, b)
+        pk_k_plus_1 = prob_contributor_increase_mutation(x, Z, risk, model, N, M, k, pop_type = FINITE_WELL_MIXED, b=b)
+        pk_k_minus_1 = prob_contributor_decrease_mutation(x, Z, risk, model, N, M, k, pop_type = FINITE_WELL_MIXED, b=b)
         pk_k = 1 - pk_k_minus_1 - pk_k_plus_1
         for j in range(Z):
             if k == j:
@@ -694,7 +694,7 @@ def evolution_stationary_distribution_with_x(model = 'PD', mode = "N=6"):
         N = 6
         M = 3
         for risk in r:
-            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, model, b = .5)], label = f"risk = {risk}")
+            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, model, b = 5)], label = f"risk = {risk}")
     elif mode == "M=2":
         risk = c/0.1 
         M = 2
