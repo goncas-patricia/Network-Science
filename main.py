@@ -7,6 +7,7 @@ from scipy.stats import hypergeom
 from itertools import count
 import numpy as np
 import sympy as sp
+from sympy.solvers import solve
 import random
 import math
 
@@ -190,7 +191,7 @@ def gradient_of_selection(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED)
     
     pop_type = type of population (infinite well-mixed or finite well-mixed)"""
     if pop_type == INFINITE_WELL_MIXED:
-        return x * (1 - x) * fitness_delta(x, risk, N, M, pop_type)
+        return x * (1 - x) * fitness_delta(x, risk, model, N, M, k, pop_type)
     elif pop_type == FINITE_WELL_MIXED:
         return x * (1 - x) * np.tanh(0.5 * beta * fitness_delta(x, risk, model, N, M, k, pop_type))
     
@@ -310,13 +311,13 @@ def fitness_finite_well_mixed(Z, risk, N, M, k):
     for j in range(min(N, k)):
         piD = payoffD(j, M, risk)
         piC = payoffD(j + 1, M, risk) - c*b
-        print("")
-        print("Z =", Z)
-        print("k =", k)
-        print("N =", N)
-        print("j =", j)
-        print("Z - k =", Z - k)
-        print("N - j - 1 =", N - j - 1)
+        # print("")
+        # print("Z =", Z)
+        # print("k =", k)
+        # print("N =", N)
+        # print("j =", j)
+        # print("Z - k =", Z - k)
+        # print("N - j - 1 =", N - j - 1)
         binomialC = math.comb(k - 1, j) * math.comb(Z - k, N - j - 1)
         binomialD = math.comb(k, j) * math.comb(Z - k - 1, N - j - 1)
         fC += binomialC * piD
@@ -461,25 +462,22 @@ def iterative_stochastic_birth_death(G, Z, x, risk, model, N, M, pop_type=FINITE
 def tridiagonal_matrix_algorithm(Z, N, M, risk, model):
     transition_matrix = np.zeros((Z, Z))
 
-    # Note: The sum of each row of the tridiagonal matrix should be 1 (think about it)
-
-    for i in range(Z):
-        k = i
+    for k in range(Z):
         x = k/Z
         pk_k_plus_1 = prob_contributor_increase_mutation(x, Z, risk, model, N, M, k)
         pk_k_minus_1 = prob_contributor_decrease_mutation(x, Z, risk, model, N, M, k)
         pk_k = 1 - pk_k_minus_1 - pk_k_plus_1
         for j in range(Z):
-            if i == j:
-                transition_matrix[i][j] = pk_k
-            elif (i + 1) == j:
-                transition_matrix[i][j] = pk_k_plus_1
-            elif (i - 1) == j:
-                transition_matrix[i][j] = pk_k_minus_1
+            if k == j:
+                transition_matrix[k][j] = pk_k
+            elif (k + 1) == j:
+                transition_matrix[k][j] = pk_k_plus_1
+            elif (k - 1) == j:
+                transition_matrix[k][j] = pk_k_minus_1
             else:
-                transition_matrix[i][j] = 0
+                transition_matrix[k][j] = 0
 
-    transition_matrix = np.linalg.inv(transition_matrix)
+    transition_matrix = transition_matrix.T
 
     return transition_matrix
 
@@ -539,6 +537,9 @@ def stationary_distribution(Z, N, M, risk, model):
 
     target_eigenvector = eigenvectors[:, close_to_1_idx].real
     stationary_distribution = target_eigenvector / sum(target_eigenvector) 
+    print("S: ", S)
+    print("target eigenvector:", target_eigenvector)
+    print("target eigenvalue:", eigenvalues[close_to_1_idx])
     return stationary_distribution
 
 
@@ -559,9 +560,11 @@ def cost_to_risk_ratio(risk):
     return c / risk
 
 
-def internal_roots(x, risk, N, M):
-    equation = abs(cost_to_risk_ratio(risk) - gamma(x, N, M))
-    return fsolve(equation, .5)
+def internal_roots(risk, N, M):
+    x = sp.symbols('x', real = True)
+    equation = cost_to_risk_ratio(risk) - gamma(x, N, M)
+    solution = solve(equation) #, x0 = .5)
+    return solution
 
 
 #############################
@@ -592,8 +595,9 @@ def evolution_gradient_of_selection_with_x(model):
     x_vals = [i / 1000 for i in range(1001)] 
 
     for risk in r:
-        plt.plot(x_vals, [gradient_of_selection(x, risk, model, N, M, N*x, INFINITE_WELL_MIXED) for x in x_vals], label = risk)
-    
+        plt.plot(x_vals, [gradient_of_selection(x, risk, model, N, M, int(N*x), INFINITE_WELL_MIXED) for x in x_vals], label = risk)
+    plt.plot(x_vals, [0 for x in x_vals])
+
     plt.legend()
     plt.xlabel('x (Fraction of cooperators)')
     plt.ylabel('Gradient of selection')
@@ -614,30 +618,28 @@ def evolution_gamma_with_gradient_of_selection():
     for M in M_values:
         plt.plot(x_vals, [gamma(x, N, M) for x in x_vals], label = f'M = {M}')
 
-    for risk in r:
-        plt.plot(x_vals, cost_to_risk_ratio(risk), label=f'Risk = risk')   
+    for risk in r[1:]:
+        plt.plot(x_vals, [cost_to_risk_ratio(risk) for x in x_vals], label=f'Risk = {risk}')   
 
     plt.legend()
     plt.xlabel('Gradient of selection')
     plt.ylabel('Gamma')
     plt.title(f'Gamma vs gradient of selection (N = {N})')
 
-    #plt.show()
+    plt.show()
 
-    internal_roots = []
-    x = sp.symbols('x')
-
+    internal_roots_dic = dict()
     # Make sure we can solve this (if needed)
     for risk in r:
-        for M in M_values:  
+        for M in M_values:
+            key = (risk, M)
             try:
-                print("Internal roots: I'm trying to find them.")
-                root = internal_roots(x, risk, N, M)
-                internal_roots.append((M, risk, root))
+                root = internal_roots(risk, N, M)
+                internal_roots_dic[key] = root
                 print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
-            except: 
-                pass
-
+            except Exception as e: 
+                raise e
+    print("internal roots: ", internal_roots_dic)
 
 def evolution_stationary_distribution_with_x(model='PD'):
     """ Gives us figure 1C/1.C.
@@ -696,5 +698,5 @@ def update(frame):
 
 #evolution_k_with_N()
 #evolution_gradient_of_selection_with_x('PD')
-#evolution_gamma_with_gradient_of_selection()
-evolution_stationary_distribution_with_x()
+evolution_gamma_with_gradient_of_selection()
+#evolution_stationary_distribution_with_x()
