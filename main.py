@@ -167,16 +167,6 @@ def fraction_of_defectors(G):
     return 1 - x(G)
 
 
-# def risk_loss(risk, M):
-#     """Risk loss function:
-
-#     If the number of cooperators is less than the threshold M,
-#     then all nodes lose their endowment with probability risk"""
-#     if number_of_cooperators(G) < M:
-#         if random.random() <= risk:
-#             for node in G.nodes():
-#                 G.nodes[node][ENDOWMENT] = 0
-
 # def risk_loss(risk, N, M, k_in_N):
 #     """Risk loss function:
 
@@ -329,9 +319,9 @@ def fitness_finite_well_mixed(Z, risk, N, M, k):
     return fC, fD
 
 
-###############################################################
-### Functions: stochastic effects (mutations, imitation) ######
-###############################################################
+####################################################
+### Functions: stochastic effects (imitation) ######
+####################################################
 
 
 def stochastic_birth_death_over_all_nodes(x, risk, model, N, M, pop_type=FINITE_WELL_MIXED):
