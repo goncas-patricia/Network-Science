@@ -64,8 +64,9 @@ Z1 = 50 # 1C, 2A-D
 Z2 = 500 # 3B-C
 # Risk
 r = [0.0001, 0.25, 0.50, 0.75, 1.00]
-# Games
-games = ['H', STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
+# Games and modes
+games_list = ["PD", "SH", "SG"] 
+modes_list = ["N=6", "M=2", "N/M=2"] 
 # Endowment, contribution (fraction c of the endowment)
 b = 1
 c = .1
@@ -180,6 +181,7 @@ def gradient_of_selection(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, 
     Replicator equation
     
     pop_type = type of population (infinite well-mixed or finite well-mixed)"""
+    beta = 5
     if pop_type == INFINITE_WELL_MIXED:
         return x * (1 - x) * fitness_delta(x, risk, game, N, M, k, pop_type)
     elif pop_type == FINITE_WELL_MIXED:
@@ -191,32 +193,23 @@ def fitness(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 50):
     """Fitness for Cs and Ds
     """
 
-    if game == STAG_HUNT:
-        if pop_type == INFINITE_WELL_MIXED:
-            fC, fD = fitness_infinite_well_mixed(x, risk, N, M, k)
-        elif pop_type == FINITE_WELL_MIXED:
-            fC, fD = fitness_finite_well_mixed(Z, risk, N, M, k)
-
-    elif game == SNOW_DRIFT:
-        fC = 1
-        fD = 0
-
-    elif game == PRISONER_DILEMMA or "PD":
-        fC = 1
-        fD = 0
+    if pop_type == INFINITE_WELL_MIXED:
+        fC, fD = fitness_infinite_well_mixed(x, risk, N, M, k, game = game)
+    elif pop_type == FINITE_WELL_MIXED:
+        fC, fD = fitness_finite_well_mixed(Z, risk, N, M, k, game = game)
 
     return [fC, fD, fC - fD]
 
 
-def fitness_C(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+def fitness_C(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
     return fitness(x, risk, game, N, M, k, pop_type, Z)[0]
 
 
-def fitness_D(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+def fitness_D(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
     return fitness(x, risk, game, N, M, k, pop_type, Z)[1]
     
 
-def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
     """Fitness delta:
 
     m = threshold of cooperators
@@ -226,16 +219,35 @@ def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
 
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
-    if pop_type == INFINITE_WELL_MIXED:
+    if pop_type == INFINITE_WELL_MIXED and game == "SH":
         return fitness_delta_infinite_well_mixed(x, risk, N, M)
-    elif pop_type == FINITE_WELL_MIXED:
+    else:
         return fitness(x, risk, game, N, M, k, pop_type, Z)[2]
 
 
-def payoffD(k, M, r):
+def payoffD(k, M, r, game = "SH"):
+    """Returns the payoff of a single D in a group of K Cs
+    M < N is the coordination threshold necessary to achieve a collective benefit"""
+    if game == "SH":
+        return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
+    elif game == "SG":
+        return b * theta(k - M)
+    elif game == "PD":
+        return b * (theta(k - M))
+
+
+def payoffC(k, M, r, game = "SH"):
     """Returns the payoff of a single C in a group of K Cs
     M < N is the coordination threshold necessary to achieve a collective benefit"""
-    return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
+    if game == "SH":
+        return payoffD(k + 1, M, r, game) - c*b
+    elif game == "SG":
+        # https://www.sciencedirect.com/science/article/pii/S0022519309003166?via%3Dihub#fd8
+        # Each C knows the threshold, that's why they contribute k/M if k<M (hoping that k hits M)
+        return 0 if k == 0 else (payoffD(k, M, r, game) - (c * theta(k - M) / k) - (c * (1 - theta(k - M)) / M))
+    elif game == "PD":
+        # Defined as equal to SH without risk
+        return payoffD(k + 1, M, r, game) - c*b
 
 
 def theta(x):
@@ -250,7 +262,7 @@ def theta(x):
 #########################################
 
 
-def fitness_infinite_well_mixed(x, risk, N, M, k):
+def fitness_infinite_well_mixed(x, risk, N, M, k, game = "SH"):
     """ Computes fitness C, fitness D and fitness Delta for infinite well-mixed populations
         The k stands for the k Cs in the group (of size N)
     """
@@ -259,8 +271,8 @@ def fitness_infinite_well_mixed(x, risk, N, M, k):
 
     for k in range(N):
         binomial = math.comb(N - 1, k)
-        piD = payoffD(k, M, risk)
-        piC = payoffD(k + 1, M, risk) - c*b
+        piD = payoffD(k, M, risk, game = game)
+        piC = payoffC(k, M, risk, game = game)
         mult = (x ** k) * ((1 - x) ** (N - 1 - k))
         fC += binomial * mult * piC
         fD += binomial * mult * piD
@@ -292,7 +304,7 @@ def fitness_delta_infinite_well_mixed(x, risk, N, M):
 #######################################
 
 
-def fitness_finite_well_mixed(Z, risk, N, M, k):
+def fitness_finite_well_mixed(Z, risk, N, M, k, game = "SH"):
     """ Computes fitness C, fitness D and fitness Delta for finite well-mixed populations of size Z
         The k stands for the k Cs in the population (of size Z)
     """
@@ -302,8 +314,8 @@ def fitness_finite_well_mixed(Z, risk, N, M, k):
 
     binomialMain = math.comb(Z - 1, N - 1)
     for j in range(min(N, k)):
-        piD = payoffD(j, M, risk)
-        piC = payoffD(j + 1, M, risk) - c*b
+        piD = payoffD(j, M, risk, game = game)
+        piC = payoffC(j, M, risk, game = game)
         # print("")
         # print("Z =", Z)
         # print("k =", k)
@@ -641,11 +653,11 @@ def evolution_gradient_of_selection_with_x(game, mode = "N=6"):
     plt.ylabel('Gradient of selection')
     plt.title(f'Gradient of selection vs. x ({mode})')
 
-    plt.savefig(f'Plots/gradient_of_selection_vs_x_{game}_{mode.replace("/", "-")}.png') 
+    plt.savefig(f'Plots/{game}/gradient_of_selection_vs_x_{game}_{mode.replace("/", "-")}.png') 
     #plt.show()
     plt.close()
 
-def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
+def evolution_gamma_with_gradient_of_selection(game = "SH", mode = "N=6"):
     """ Gives us figure 1B/1.B.
         Infinite well-mixed population.
         It also retrieves the internal roots of the gradient of selection.
@@ -676,7 +688,7 @@ def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
     plt.ylabel('Gamma')
     plt.title(f'Gamma vs gradient of selection ({mode})')
 
-    plt.savefig(f'Plots/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
+    plt.savefig(f'Plots/{game}/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
     #plt.show()
     plt.close()
 
@@ -751,21 +763,23 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
     plt.ylabel('Satationary distribution')
     plt.title(f'Stationary distribution vs. x ({mode})')
 
-    plt.savefig(f'Plots/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}.png') 
+    plt.savefig(f'Plots/{game}/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}.png') 
     #plt.show()
     plt.close()
 
 
 #evolution_k_with_Z(model = "COMPLETE") #not in the paper, just for visualization
 
-evolution_gradient_of_selection_with_x(game = 'SH', mode = "N=6") #1A, infinite population
+for game in games_list:
+    evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
+    evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
+
 evolution_gamma_with_gradient_of_selection(mode = "N=6") #1B, infinite population
-evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6") #1C, finite pop.
-evolution_stationary_distribution_with_x(game = 'SH', mode = "M=2") #2A, finite pop.
-evolution_stationary_distribution_with_x(game = 'SH', mode = "N/M=2") #2B, finite pop.
 evolution_gamma_with_gradient_of_selection(mode = "M=2") #2C, finite pop.
 evolution_gamma_with_gradient_of_selection(mode = "N/M=2") #2D, finite pop.
 
 # get_all_internal_roots(mode = "N=6")
-# get_all_internal_roots(mode = "M=2")
+# get_all_internal_roots(mode = "M=2") 
 # get_all_internal_roots(mode = "N/M=2")
