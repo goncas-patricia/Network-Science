@@ -21,19 +21,6 @@ import math
 #   na fixação de um fenótipo/alelo
 # - Observações dos resultados empíricos
 
-
-# Notas
-# risk loss tem erro
-# prestar atenção à diferença entre Z e N
-# k has differents meanings on infinite (number of k in N) vs finite (number of k in Z)
-
-
-# TASKS
-# mudar o cost-benefit para N-player
-# introdução do risk corretamente (replicator equation paper or slide 43 topic 11 3rd presentation)
-# Última parte do paper (Evolutionary Dynamics in Structured Populations)
-
-
 #################
 ### Constants ###
 #################
@@ -70,19 +57,19 @@ random.seed(SEED)
 
 
 # Nodes, thresholds, group size
+Z_values = np.linspace(1, 90, 30).astype(int)
 N_values = [4, 8, 12, 24, 48] 
 M_values = [2, 3, 4, 5]
 Z1 = 50 # 1C, 2A-D
 Z2 = 500 # 3B-C
 # Risk
 r = [0.0001, 0.25, 0.50, 0.75, 1.00]
-# Models
-models = ['H', STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
+# Games
+games = ['H', STAG_HUNT, SNOW_DRIFT, PRISONER_DILEMMA] 
 # Endowment, contribution (fraction c of the endowment)
 b = 1
 c = .1
 # Social learning, mutation rate
-beta = 2.5
 u = 0.01
 mutation_matrix = []
 
@@ -119,6 +106,9 @@ def set_behavior_node_attributes(G, attr_name, cooperator, defector):
 
 
 def setup(Z, model):
+    ''' Until figures 2, setup is not used, only for the extra evolution_with_Z we created.
+        This means that, until figures 2, we are not generating a network.
+    '''
     global G
     if model == BARABASI_ALBERT:
         # Scale-free network (barabasi-albert)
@@ -184,49 +174,49 @@ def fraction_of_defectors(G):
 ######################################################
 
 
-def gradient_of_selection(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 500):
+def gradient_of_selection(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 50):
     """Gradient of selection:
 
     Replicator equation
     
     pop_type = type of population (infinite well-mixed or finite well-mixed)"""
     if pop_type == INFINITE_WELL_MIXED:
-        return x * (1 - x) * fitness_delta(x, risk, model, N, M, k, pop_type)
+        return x * (1 - x) * fitness_delta(x, risk, game, N, M, k, pop_type)
     elif pop_type == FINITE_WELL_MIXED:
-        print(fitness_delta(x, risk, model, N, M, k, pop_type, Z))
-        return x * (1 - x) * np.tanh(-.5 * beta * fitness_delta(x, risk, model, N, M, k, pop_type, Z))
+        #print(fitness_delta(x, risk, game, N, M, k, pop_type, Z))
+        return x * (1 - x) * np.tanh(-.5 * beta * fitness_delta(x, risk, game, N, M, k, pop_type, Z))
     
 
-def fitness(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 500):
+def fitness(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z = 50):
     """Fitness for Cs and Ds
     """
 
-    if model == STAG_HUNT:
-        fC = 1
-        fD = 0
-
-    elif model == SNOW_DRIFT:
-        fC = 1
-        fD = 0
-
-    elif model == PRISONER_DILEMMA or "PD":
+    if game == STAG_HUNT:
         if pop_type == INFINITE_WELL_MIXED:
             fC, fD = fitness_infinite_well_mixed(x, risk, N, M, k)
         elif pop_type == FINITE_WELL_MIXED:
             fC, fD = fitness_finite_well_mixed(Z, risk, N, M, k)
 
+    elif game == SNOW_DRIFT:
+        fC = 1
+        fD = 0
+
+    elif game == PRISONER_DILEMMA or "PD":
+        fC = 1
+        fD = 0
+
     return [fC, fD, fC - fD]
 
 
-def fitness_C(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
-    return fitness(x, risk, model, N, M, k, pop_type, Z)[0]
+def fitness_C(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+    return fitness(x, risk, game, N, M, k, pop_type, Z)[0]
 
 
-def fitness_D(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
-    return fitness(x, risk, model, N, M, k, pop_type, Z)[1]
+def fitness_D(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+    return fitness(x, risk, game, N, M, k, pop_type, Z)[1]
     
 
-def fitness_delta(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
+def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
     """Fitness delta:
 
     m = threshold of cooperators
@@ -239,7 +229,7 @@ def fitness_delta(x, risk, model, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=500):
     if pop_type == INFINITE_WELL_MIXED:
         return fitness_delta_infinite_well_mixed(x, risk, N, M)
     elif pop_type == FINITE_WELL_MIXED:
-        return fitness(x, risk, model, N, M, k, pop_type, Z)[2]
+        return fitness(x, risk, game, N, M, k, pop_type, Z)[2]
 
 
 def payoffD(k, M, r):
@@ -279,7 +269,9 @@ def fitness_infinite_well_mixed(x, risk, N, M, k):
 
 
 def gamma(x, N, M):
-    """Auxiliary function for the infinite well-mixed population fitness delta"""
+    """ Auxiliary function for the infinite well-mixed population fitness delta
+        Note: we also use this expression for figures of finite well-mixed populations
+    """
     return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
 
 
@@ -332,127 +324,127 @@ def fitness_finite_well_mixed(Z, risk, N, M, k):
 ### Functions: stochastic effects (imitation) ######
 ####################################################
 
-def stochastic_birth_death(G, risk, model, N, M, mutation_matrix, pop_type=FINITE_WELL_MIXED, num_iterations=1):
-    """Stochastic birth-death process:
+# def stochastic_birth_death(G, risk, game, N, M, mutation_matrix, pop_type=FINITE_WELL_MIXED, num_iterations=1):
+#     """Stochastic birth-death process:
     
-    Under pair-wise comparison, each individual i adopts the
-    strategy (cooperation or defection) of a randomly selected member of
-    the population j, with probability given by the Fermi function. Makes one
-    pass over all nodes in the network, updating the state of the population. Performs
-    this process num_iterations times
+#     Under pair-wise comparison, each individual i adopts the
+#     strategy (cooperation or defection) of a randomly selected member of
+#     the population j, with probability given by the Fermi function. Makes one
+#     pass over all nodes in the network, updating the state of the population. Performs
+#     this process num_iterations times
     
-    returns the state of the population after the stochastic birth-death process
+#     returns the state of the population after the stochastic birth-death process
 
-    state = positive if increase in contributors > increase in defectors,
-            0 if increase in contributors = increase in defectors,
-            negative otherwise
-    """
-    nodes = list(G.nodes())
-    num_nodes = len(nodes)
+#     state = positive if increase in contributors > increase in defectors,
+#             0 if increase in contributors = increase in defectors,
+#             negative otherwise
+#     """
+#     nodes = list(G.nodes())
+#     num_nodes = len(nodes)
 
-    state = 0 # positive if increase in contributors > increase in defectors
-              # negative if it is smaller
+#     state = 0 # positive if increase in contributors > increase in defectors
+#               # negative if it is smaller
 
-    k = number_of_cooperators(G)
-    for i in range(num_iterations):
-        # Select node that will adopt its strategy
-        social_node = random.choice(nodes)
+#     k = number_of_cooperators(G)
+#     for i in range(num_iterations):
+#         # Select node that will adopt its strategy
+#         social_node = random.choice(nodes)
 
-        # Select a random node
-        random_node = random.choice(nodes)
+#         # Select a random node
+#         random_node = random.choice(nodes)
 
-        x = k / num_nodes
-        fitnessContributor, fitnessDefector = fitness(x, risk, model, N, M, pop_type)
-        # TODO - chamar sempre fitness() aqui parece computacionalmente caro
-        # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
+#         x = k / num_nodes
+#         fitnessContributor, fitnessDefector = fitness(x, risk, game, N, M, pop_type)
+#         # TODO - chamar sempre fitness() aqui parece computacionalmente caro
+#         # Será que abdicamos de alguma precisão e calculamos o fitness fora do loop?
 
-        # Get the fitness of the random node
-        if G.nodes[random_node][COOPERATORS] == 1:
-            fitness_random_node = fitnessContributor
-        else:
-            fitness_random_node = fitnessDefector
-        # Get the fitness of the current node
-        if G.nodes[social_node][COOPERATORS] == 1:
-            fitness_current_node = fitnessContributor
-        else:
-            fitness_current_node = fitnessDefector
+#         # Get the fitness of the random node
+#         if G.nodes[random_node][COOPERATORS] == 1:
+#             fitness_random_node = fitnessContributor
+#         else:
+#             fitness_random_node = fitnessDefector
+#         # Get the fitness of the current node
+#         if G.nodes[social_node][COOPERATORS] == 1:
+#             fitness_current_node = fitnessContributor
+#         else:
+#             fitness_current_node = fitnessDefector
 
-        # Get the probability of the current node adopting the strategy of the random node
-        # based on the Fermi function
-        adoption_prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
+#         # Get the probability of the current node adopting the strategy of the random node
+#         # based on the Fermi function
+#         adoption_prob = 1 / (1 + np.exp(-beta * (fitness_random_node - fitness_current_node)))
 
-        # The current node adopts the strategy of the random node with probability prob
-        if random.random() <= adoption_prob:
-            if G.nodes[social_node][COOPERATORS] != G.nodes[random_node][COOPERATORS]:
-                # If they had different strategies, update the state
-                if G.nodes[social_node][COOPERATORS] == 1:
-                    state += 1
-                    k += 1
-                else:
-                    state -= 1
-                    k -= 1
+#         # The current node adopts the strategy of the random node with probability prob
+#         if random.random() <= adoption_prob:
+#             if G.nodes[social_node][COOPERATORS] != G.nodes[random_node][COOPERATORS]:
+#                 # If they had different strategies, update the state
+#                 if G.nodes[social_node][COOPERATORS] == 1:
+#                     state += 1
+#                     k += 1
+#                 else:
+#                     state -= 1
+#                     k -= 1
 
-        # Node mutates its strategy with mutation rate u
-        # according to the mutation matrix
-        contribute_prob = mutation_matrix[k][k + 1]
-        defect_prob = mutation_matrix[k][k - 1]
-        mutation_prob = random.random()
-        if G.nodes[social_node][COOPERATORS] == 1:
-            if mutation_prob <= defect_prob:
-                G.nodes[social_node][COOPERATORS] = 0
-                state -= 1
-                k -= 1
-        else:
-            if mutation_prob <= contribute_prob:
-                G.nodes[social_node][COOPERATORS] = 1
-                state += 1
-                k += 1
+#         # Node mutates its strategy with mutation rate u
+#         # according to the mutation matrix
+#         contribute_prob = mutation_matrix[k][k + 1]
+#         defect_prob = mutation_matrix[k][k - 1]
+#         mutation_prob = random.random()
+#         if G.nodes[social_node][COOPERATORS] == 1:
+#             if mutation_prob <= defect_prob:
+#                 G.nodes[social_node][COOPERATORS] = 0
+#                 state -= 1
+#                 k -= 1
+#         else:
+#             if mutation_prob <= contribute_prob:
+#                 G.nodes[social_node][COOPERATORS] = 1
+#                 state += 1
+#                 k += 1
 
-    return state
+#     return state
 
 
-def iterative_stochastic_birth_death(G, Z, x, risk, model, N, M, pop_type=FINITE_WELL_MIXED,
-                                     convergence_threshold=10, epsilon=0.0001, 
-                                     max_iterations=math.inf):
-    """Iterative stochastic birth-death process:
+# def iterative_stochastic_birth_death(G, Z, x, risk, game, N, M, pop_type=FINITE_WELL_MIXED,
+#                                      convergence_threshold=10, epsilon=0.0001, 
+#                                      max_iterations=math.inf):
+#     """Iterative stochastic birth-death process:
     
-    Performs a stochastic birth-death process until the state of the population
-    is 0 (no change in the number of contributors or defectors) or seems to
-    converge. A value for max_iterations can be provided if convergence is not
-    essential.
+#     Performs a stochastic birth-death process until the state of the population
+#     is 0 (no change in the number of contributors or defectors) or seems to
+#     converge. A value for max_iterations can be provided if convergence is not
+#     essential.
     
-    We say it converges if the variation in the number of contributors or defectors
-    is smaller than epsilon for convergence_threshold iterations
+#     We say it converges if the variation in the number of contributors or defectors
+#     is smaller than epsilon for convergence_threshold iterations
     
-    Returns state = overall variation in the number of contributors or defectors"""
+#     Returns state = overall variation in the number of contributors or defectors"""
 
-    mutation_matrix = tridiagonal_matrix_algorithm(Z, N, M, risk, model)
+#     mutation_matrix = tridiagonal_matrix_algorithm(Z, N, M, risk, game)
     
-    state = 0
-    converged = False
-    timesCloseToConvergence = 0
-    iteration = 0
-    while not converged and iteration < max_iterations:
-        # TODO - Not sure how the number of players might be made to affect this...
+#     state = 0
+#     converged = False
+#     timesCloseToConvergence = 0
+#     iteration = 0
+#     while not converged and iteration < max_iterations:
+#         # TODO - Not sure how the number of players might be made to affect this...
 
-        variation = stochastic_birth_death(G, risk, model, N, M, pop_type=pop_type, num_iterations=100)
-        state += variation
+#         variation = stochastic_birth_death(G, risk, game, N, M, pop_type=pop_type, num_iterations=100)
+#         state += variation
 
-        if abs(variation) < epsilon:
-            timesCloseToConvergence += 1
-        elif timesCloseToConvergence > 0:
-            # We want a streak of timesCloseToConvergence iterations with variation < epsilon
-            timesCloseToConvergence -= 1
+#         if abs(variation) < epsilon:
+#             timesCloseToConvergence += 1
+#         elif timesCloseToConvergence > 0:
+#             # We want a streak of timesCloseToConvergence iterations with variation < epsilon
+#             timesCloseToConvergence -= 1
 
-            # TODO - we could consider only subtracting with a certain probability,
-            # but I think this is fine
+#             # TODO - we could consider only subtracting with a certain probability,
+#             # but I think this is fine
 
-        if timesCloseToConvergence == convergence_threshold:
-            converged = True
+#         if timesCloseToConvergence == convergence_threshold:
+#             converged = True
 
-        iteration += 1
+#         iteration += 1
 
-    return state
+#     return state
 
 
 ##########################################
@@ -460,13 +452,13 @@ def iterative_stochastic_birth_death(G, Z, x, risk, model, N, M, pop_type=FINITE
 ##########################################
 
 
-def tridiagonal_matrix_algorithm(Z, N, M, risk, model, b=.5):
+def tridiagonal_matrix_algorithm(Z, N, M, risk, game, beta=.5):
     transition_matrix = np.zeros((Z, Z))
 
     for k in range(Z):
         x = k/Z
-        pk_k_plus_1 = prob_contributor_increase_mutation(x, Z, risk, model, N, M, k, pop_type = FINITE_WELL_MIXED, b=b)
-        pk_k_minus_1 = prob_contributor_decrease_mutation(x, Z, risk, model, N, M, k, pop_type = FINITE_WELL_MIXED, b=b)
+        pk_k_plus_1 = prob_contributor_increase_mutation(x, Z, risk, game, N, M, k, pop_type = FINITE_WELL_MIXED, beta=beta)
+        pk_k_minus_1 = prob_contributor_decrease_mutation(x, Z, risk, game, N, M, k, pop_type = FINITE_WELL_MIXED, beta=beta)
         pk_k = 1 - pk_k_minus_1 - pk_k_plus_1
         for j in range(Z):
             if k == j:
@@ -483,29 +475,29 @@ def tridiagonal_matrix_algorithm(Z, N, M, risk, model, b=.5):
     return transition_matrix
 
 
-def prob_contributor_increase_mutation(x, Z, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED, b=.5):
+def prob_contributor_increase_mutation(x, Z, risk, game, N, M, k, pop_type=FINITE_WELL_MIXED, beta=.5):
     """Probability of contributor increase due to mutation:
 
     Returns the probability of an increase in contributors due to mutation"""
 
     return ( (1 - u) 
-            * prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, model, N, M, k, pop_type=pop_type, increase=True, b=b)
+            * prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, game, N, M, k, pop_type=pop_type, increase=True, beta=beta)
             + u * (Z - k) / Z
     )
 
 
-def prob_contributor_decrease_mutation(x, Z, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED, b=.5):
+def prob_contributor_decrease_mutation(x, Z, risk, game, N, M, k, pop_type=FINITE_WELL_MIXED, beta=.5):
     """Probability of contributor decrease due to mutation:
 
     Returns the probability of a decrease in contributors due to mutation"""
 
     return ( (1 - u) 
-            * prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, model, N, M, k, pop_type=pop_type, increase=False, b=b)
+            * prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, game, N, M, k, pop_type=pop_type, increase=False, beta=beta)
             + u * k / Z
     )
 
 
-def prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, model, N, M, k, pop_type=FINITE_WELL_MIXED, increase=True, b = .5):
+def prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, game, N, M, k, pop_type=FINITE_WELL_MIXED, increase=True, beta = .5):
     """Probability of increase and decrease in the number of contributors by one:
 
     Returns the probability of an increase and decrease in the number of contributors by one"""
@@ -513,18 +505,18 @@ def prob_increase_and_decrease_number_Cs_by_one(x, Z, risk, model, N, M, k, pop_
     if not increase:
         sign = 1
 
-    fitness_C , fitness_D, fitness_delta = fitness(x, risk, model, N, M, k, pop_type, Z)
-    return x * (1-x) * (1 + math.exp(sign * b * (fitness_C - fitness_D)))**(-1)
+    fitness_C , fitness_D, fitness_delta = fitness(x, risk, game, N, M, k, pop_type, Z)
+    return x * (1-x) * (1 + math.exp(sign * beta * (fitness_C - fitness_D)))**(-1)
 
 
-def stationary_distribution(Z, N, M, risk, model="PD", b=.5):
+def stationary_distribution(Z, N, M, risk, game="SH", beta=.5):
     '''
     Compute the stationary distribution P(k/Z)
     of the complete Markov chain with Z + 1 states
     (as shown in Figs. 1C, 2A and 2B).
     '''
 
-    S = tridiagonal_matrix_algorithm(Z, N, M, risk, model, b)
+    S = tridiagonal_matrix_algorithm(Z, N, M, risk, game, beta)
     # Note: discuss if .T should be next to S
     eigenvalues, eigenvectors = np.linalg.eig(S)
 
@@ -537,10 +529,10 @@ def stationary_distribution(Z, N, M, risk, model="PD", b=.5):
     target_eigenvalue = eigenvalues[close_to_1_idx]
     target_eigenvector = eigenvectors[:, close_to_1_idx].real
     stationary_distribution = target_eigenvector / sum(target_eigenvector) 
-    print("S: ", S)
-    print("target eigenvector:", target_eigenvector)
-    print("target eigenvalue:", eigenvalues[close_to_1_idx])
-    print("sum of elements S:", sum(stationary_distribution))
+    #print("S: ", S)
+    #print("target eigenvector:", target_eigenvector)
+    #print("target eigenvalue:", eigenvalues[close_to_1_idx])
+    #print("sum of elements S:", sum(stationary_distribution))
     return stationary_distribution
 
 
@@ -564,8 +556,11 @@ def cost_to_risk_ratio(risk):
 def internal_roots(risk, N, M):
     x = sp.symbols('x', real = True)
     equation = cost_to_risk_ratio(risk) - gamma(x, N, M)
-    solution = solve(equation) #, x0 = .5)
-    return solution
+    try:
+        solution = solve(equation) #, x0 = .5)
+        return solution
+    except sp.SolvesetError:
+        return None  
 
 
 #############################
@@ -573,19 +568,55 @@ def internal_roots(risk, N, M):
 #############################
 
 
-def evolution_k_with_N():
+def evolution_k_with_Z(model = "COMPLETE"):
     """ Create an animation in which N grows
     """
     # Create a figure for the animation
     fig = plt.figure(figsize=(12, 6))
 
     # Create the animation
-    animation = ani.FuncAnimation(fig, update, frames=len(N_values), repeat=False)
+    animation = ani.FuncAnimation(fig, update, fargs=(model,), frames=len(Z_values), repeat=False)
+    # plt.rcParams['animation.writer'] = 'ffmpeg'
+    # animation.save(f'Plots/animation_{model}.mp4', writer='ffmpeg', fps=30) 
 
-    plt.show()
+    #plt.show()
+    #plt.close()
 
 
-def evolution_gradient_of_selection_with_x(model, mode = "N=6"):
+def update(frame, model = "COMPLETE"):
+    # Generate Population of size Z in which individuals engage in an N person dilemma
+    Z = Z_values[frame]
+
+    setup(Z, model)
+
+    # Calculate the degrees of all nodes in the network
+    k_s = [k_n for Z, k_n in G.degree()]
+    k_s = [k_n * random.randint(0, 30) for k_n in k_s]
+
+    # Get unique groups
+    groups = set(nx.get_node_attributes(G,COOPERATORS).values())
+    mapping = dict(zip(sorted(groups),count()))
+    colors = [mapping[G.nodes[n][COOPERATORS]] for n in G.nodes()]
+
+    # Visualize
+    plt.clf()
+    plt.subplot(121)
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=False, node_size=k_s, node_color=colors, width=0.5)
+    plt.title(f"Network with {Z} nodes")
+
+    # Plot the degree distribution as a histogram
+    plt.subplot(122)
+    plt.hist(k_s, bins=20, edgecolor='k')
+    plt.title(f"Degree Distribution of a Network ({model})")
+    plt.xlabel("Degree")
+    plt.ylabel("Frequency")
+    #plt.show()
+    #plt.close()
+
+
+
+def evolution_gradient_of_selection_with_x(game, mode = "N=6"):
     """ Gives us figure 1A/1.A.
         Infinite well-mixed population.
     """
@@ -596,13 +627,13 @@ def evolution_gradient_of_selection_with_x(model, mode = "N=6"):
         for risk in r:
             N = 6
             x_vals = [i / 1000 for i in range(1001)]
-            plt.plot(x_vals, [gradient_of_selection(x, risk, model, N, M, int(N*x), INFINITE_WELL_MIXED) for x in x_vals], label = f"risk = {risk}")
+            plt.plot(x_vals, [gradient_of_selection(x, risk, game, N, M, int(N*x), INFINITE_WELL_MIXED) for x in x_vals], label = f"risk = {risk}")
     if mode == "N=7" or mode == "M=3N/7":
         for risk in r[2:]:
             Z = 500
             N = 7
             x_vals = [i / 1000 for i in range(1000)]
-            plt.plot(x_vals, [gradient_of_selection(x, risk, model, N, M, int(Z*x), FINITE_WELL_MIXED, Z) for x in x_vals], label = f"risk = {risk}")
+            plt.plot(x_vals, [gradient_of_selection(x, risk, game, N, M, int(Z*x), FINITE_WELL_MIXED, Z) for x in x_vals], label = f"risk = {risk}")
     plt.plot(x_vals, [0 for x in x_vals])
 
     plt.legend()
@@ -610,14 +641,15 @@ def evolution_gradient_of_selection_with_x(model, mode = "N=6"):
     plt.ylabel('Gradient of selection')
     plt.title(f'Gradient of selection vs. x ({mode})')
 
-    plt.show()
+    plt.savefig(f'Plots/gradient_of_selection_vs_x_{game}_{mode.replace("/", "-")}.png') 
+    #plt.show()
+    plt.close()
 
 def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
     """ Gives us figure 1B/1.B.
         Infinite well-mixed population.
         It also retrieves the internal roots of the gradient of selection.
     """
-    N = 6
 
     # Evaluate function and create the plot
     x_vals = [i / 1000 for i in range(1001)]    
@@ -644,8 +676,15 @@ def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
     plt.ylabel('Gamma')
     plt.title(f'Gamma vs gradient of selection ({mode})')
 
-    plt.show()
+    plt.savefig(f'Plots/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
+    #plt.show()
+    plt.close()
 
+
+def get_all_internal_roots(mode = "N=6"):
+    ''' Given the mode, this retrieves all internal roots.
+        Based on gamma vs gradient of selection.
+    '''
     internal_roots_dic = dict()
     for risk in r:
         if mode == "N=6":
@@ -655,7 +694,7 @@ def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
                 try:
                     root = internal_roots(risk, N, M)
                     internal_roots_dic[key] = root
-                    print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
+                    #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
                     raise e
         elif mode == "M=2":
@@ -665,7 +704,7 @@ def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
                 try:
                     root = internal_roots(risk, N, M)
                     internal_roots_dic[key] = root
-                    print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
+                    #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
                     raise e
         elif mode == "M=N/2":
@@ -676,12 +715,13 @@ def evolution_gamma_with_gradient_of_selection(mode = "N=6"):
                 try:
                     root = internal_roots(risk, N, int(M))
                     internal_roots_dic[key] = root
-                    print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
+                    #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
                     raise e
-    print("internal roots: ", internal_roots_dic)
+    #print("internal roots: ", internal_roots_dic)
 
-def evolution_stationary_distribution_with_x(model = 'PD', mode = "N=6"):
+
+def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
     """ Gives us figure 1C/1.C.
         For finite populations.
     """
@@ -694,59 +734,38 @@ def evolution_stationary_distribution_with_x(model = 'PD', mode = "N=6"):
         N = 6
         M = 3
         for risk in r:
-            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, model, b = 5)], label = f"risk = {risk}")
+            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"risk = {risk}")
     elif mode == "M=2":
-        risk = c/0.1 
+        risk = c*4
         M = 2
         for N in N_values:
-            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, model, b = 2.5)], label = f"N = {N}")
+            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"N = {N}")
     elif mode == "N/M=2":
-        risk = c/0.1 
+        risk = c*4
         for N in N_values:
-            M = N//2
-            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, int(M), risk, model, b = 2.5)], label = f"N = {N}")
+            M = int(N//2)
+            plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"N = {N}")
     
     plt.legend()
     plt.xlabel('x (Fraction of cooperators)')
     plt.ylabel('Satationary distribution')
     plt.title(f'Stationary distribution vs. x ({mode})')
 
-    plt.show()
+    plt.savefig(f'Plots/stationary_distribution_vs_x_{mode.replace("/", "-")}_beta={b}.png') 
+    #plt.show()
+    plt.close()
 
 
-def update(frame):
-    # Generate Population of size Z in which individuals engage in an N person dilemma
-    N = N_values[frame]
+#evolution_k_with_Z(model = "COMPLETE") #not in the paper, just for visualization
 
-    setup(N, BARABASI_ALBERT)
+evolution_gradient_of_selection_with_x(game = 'SH', mode = "N=6") #1A, infinite population
+evolution_gamma_with_gradient_of_selection(mode = "N=6") #1B, infinite population
+evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6") #1C, finite pop.
+evolution_stationary_distribution_with_x(game = 'SH', mode = "M=2") #2A, finite pop.
+evolution_stationary_distribution_with_x(game = 'SH', mode = "N/M=2") #2B, finite pop.
+evolution_gamma_with_gradient_of_selection(mode = "M=2") #2C, finite pop.
+evolution_gamma_with_gradient_of_selection(mode = "N/M=2") #2D, finite pop.
 
-    # Calculate the degrees of all nodes in the network
-    k_s = [k_n for N, k_n in G.degree()]
-    k_s = [k_n * random.randint(0, 30) for k_n in k_s]
-
-    # Get unique groups
-    groups = set(nx.get_node_attributes(G,COOPERATORS).values())
-    mapping = dict(zip(sorted(groups),count()))
-    colors = [mapping[G.nodes[n][COOPERATORS]] for n in G.nodes()]
-
-    # Visualize
-    plt.clf()
-    plt.subplot(121)
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, with_labels=False, node_size=k_s, node_color=colors, width=0.5)
-    plt.title(f"Network with {N} nodes")
-
-    # Plot the degree distribution as a histogram
-    plt.subplot(122)
-    plt.hist(k_s, bins=20, edgecolor='k')
-    plt.title("Degree Distribution of a Scale-Free Network")
-    plt.xlabel("Degree")
-    plt.ylabel("Frequency")
-    plt.show()
-
-
-
-#evolution_k_with_N()
-#evolution_gradient_of_selection_with_x('PD', "N=7")
-#evolution_gamma_with_gradient_of_selection("N/M=2")
-evolution_stationary_distribution_with_x(model = 'PD', mode = "N=6")
+# get_all_internal_roots(mode = "N=6")
+# get_all_internal_roots(mode = "M=2")
+# get_all_internal_roots(mode = "N/M=2")
