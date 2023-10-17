@@ -231,7 +231,8 @@ def payoffD(k, M, r, game = "SH"):
     if game == "SH":
         return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
     elif game == "SG":
-        return b * theta(k - M)
+        # I adapt from the paper: considering risk for all if M < N is not met
+        return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
     elif game == "PD":
         return b * (theta(k - M))
 
