@@ -751,7 +751,7 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
     plt.ylabel('Satationary distribution')
     plt.title(f'Stationary distribution vs. x ({mode})')
 
-    plt.savefig(f'Plots/stationary_distribution_vs_x_{mode.replace("/", "-")}_beta={b}.png') 
+    plt.savefig(f'Plots/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}.png') 
     #plt.show()
     plt.close()
 
