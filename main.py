@@ -11,15 +11,6 @@ from sympy.solvers import solve
 import random
 import math
 
-# Coisas que podem ser úteis/interessantes falar na apresentação/workshop:
-# - O que é a tragédia dos comuns
-#       - O que é o risco de falha coletiva
-# - Exemplos reais da tragédia dos comuns
-# - Paper (parte dos métodos Evolutionary Dynamics in Finite Well-Mixed Populations)
-#   fala de random drift para low fitness values. Pode ser interessante explicar o que
-#   isso quer dizer e relacionar com o conceito análogo na biologia (aka driva genética)
-#   na fixação de um fenótipo/alelo
-# - Observações dos resultados empíricos
 
 #################
 ### Constants ###
@@ -220,7 +211,7 @@ def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
     if pop_type == INFINITE_WELL_MIXED and game == "SH":
-        return fitness_delta_infinite_well_mixed(x, risk, N, M)
+        return fitness_delta_infinite_well_mixed(x, risk, N, M, game = game)
     else:
         return fitness(x, risk, game, N, M, k, pop_type, Z)[2]
 
@@ -281,14 +272,20 @@ def fitness_infinite_well_mixed(x, risk, N, M, k, game = "SH"):
     return fC, fD
 
 
-def gamma(x, N, M):
+def gamma(x, N, M, game = "SH"):
     """ Auxiliary function for the infinite well-mixed population fitness delta
         Note: we also use this expression for figures of finite well-mixed populations
     """
-    return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
+    if game == "SH":
+        return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
+    elif game == "SG":
+        return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
+    elif game == "PD":
+        return math.comb(N - 1, M - 1) * (x**(M - 1)) * ((1 - x)**(N-M))
 
 
-def fitness_delta_infinite_well_mixed(x, risk, N, M):
+
+def fitness_delta_infinite_well_mixed(x, risk, N, M, game = "SH"):
     """Computes the fitness delta (fitness contributors - fitness defectors)
     for an infinite well-mixed population, based on the formula provided in the paper:
     
@@ -297,7 +294,7 @@ def fitness_delta_infinite_well_mixed(x, risk, N, M):
     
     Used for an infinite number of nodes.
     """
-    return b * (gamma(x, N, M)*risk - c)
+    return b * (gamma(x, N, M, game = game)*risk - c)
 
 
 #######################################
@@ -566,9 +563,9 @@ def cost_to_risk_ratio(risk):
     return c / risk
 
 
-def internal_roots(risk, N, M):
+def internal_roots(risk, N, M, game = "SH"):
     x = sp.symbols('x', real = True)
-    equation = cost_to_risk_ratio(risk) - gamma(x, N, M)
+    equation = cost_to_risk_ratio(risk) - gamma(x, N, M, game = game)
     try:
         solution = solve(equation) #, x0 = .5)
         return solution
@@ -616,14 +613,14 @@ def update(frame, model = "COMPLETE"):
     plt.subplot(121)
     pos = nx.spring_layout(G)
     nx.draw(G, pos, with_labels=False, node_size=k_s, node_color=colors, width=0.5)
-    plt.title(f"Network with {Z} nodes")
+    ##plt.title(f"Network with {Z} nodes")
 
     # Plot the degree distribution as a histogram
     plt.subplot(122)
     plt.hist(k_s, bins=20, edgecolor='k')
-    plt.title(f"Degree Distribution of a Network ({model})")
-    plt.xlabel("Degree")
-    plt.ylabel("Frequency")
+    ##plt.title(f"Degree Distribution of a Network ({model})")
+    plt.xlabel("Degree", fontsize=16)
+    plt.ylabel("Frequency", fontsize=16)
     #plt.show()
     #plt.close()
 
@@ -649,10 +646,10 @@ def evolution_gradient_of_selection_with_x(game, mode = "N=6"):
             plt.plot(x_vals, [gradient_of_selection(x, risk, game, N, M, int(Z*x), FINITE_WELL_MIXED, Z) for x in x_vals], label = f"risk = {risk}")
     plt.plot(x_vals, [0 for x in x_vals])
 
-    plt.legend()
-    plt.xlabel('x (Fraction of cooperators)')
-    plt.ylabel('Gradient of selection')
-    plt.title(f'Gradient of selection vs. x ({mode})')
+    plt.legend(fontsize=14)
+    plt.xlabel('x (Fraction of cooperators)', fontsize=16)
+    plt.ylabel('Gradient of selection', fontsize=16)
+    ##plt.title(f'Gradient of selection vs. x ({mode})')
 
     plt.savefig(f'Plots/{game}/gradient_of_selection_vs_x_{game}_{mode.replace("/", "-")}.png') 
     #plt.show()
@@ -670,31 +667,31 @@ def evolution_gamma_with_gradient_of_selection(game = "SH", mode = "N=6"):
     if mode == "N=6":
         N = 6
         for M in M_values:
-            plt.plot(x_vals, [gamma(x, N, M) for x in x_vals], label = f'M = {M}')
+            plt.plot(x_vals, [gamma(x, N, M, game = game) for x in x_vals], label = f'M = {M}')
     elif mode == "M=2":
         M = 2
         for N in N_values:
-            plt.plot(x_vals, [gamma(x, N, M) for x in x_vals], label = f'N = {N}')
+            plt.plot(x_vals, [gamma(x, N, M, game = game) for x in x_vals], label = f'N = {N}')
     elif mode == "N/M=2":
         risk = c/0.1 
         for N in N_values:
             M = int(N//2)
-            plt.plot(x_vals, [gamma(x, N, M) for x in x_vals], label = f'N = {N}')
+            plt.plot(x_vals, [gamma(x, N, M, game = game) for x in x_vals], label = f'N = {N}')
 
     for risk in r[1:]:
         plt.plot(x_vals, [cost_to_risk_ratio(risk) for x in x_vals], label=f'Risk = {risk}')   
 
-    plt.legend()
-    plt.xlabel('Gradient of selection')
-    plt.ylabel('Cost to risk ratio')
-    plt.title(f'Cost to risk ratio vs. gradient of selection ({mode})')
+    plt.legend(fontsize=14)
+    plt.xlabel('Gradient of selection', fontsize=16)
+    plt.ylabel('Cost to risk ratio', fontsize=16)
+    #plt.title(f'Cost to risk ratio vs. gradient of selection ({mode})')
 
     plt.savefig(f'Plots/{game}/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
     #plt.show()
     plt.close()
 
 
-def get_all_internal_roots(mode = "N=6"):
+def get_all_internal_roots(mode = "N=6", game = "SH"):
     ''' Given the mode, this retrieves all internal roots.
         Based on gamma vs gradient of selection.
     '''
@@ -705,7 +702,7 @@ def get_all_internal_roots(mode = "N=6"):
             for M in M_values:
                 key = (risk, M, N)
                 try:
-                    root = internal_roots(risk, N, M)
+                    root = internal_roots(risk, N, M, game = game)
                     internal_roots_dic[key] = root
                     #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
@@ -715,7 +712,7 @@ def get_all_internal_roots(mode = "N=6"):
             for N in N_values:
                 key = (risk, M, N)
                 try:
-                    root = internal_roots(risk, N, M)
+                    root = internal_roots(risk, N, M, game = game)
                     internal_roots_dic[key] = root
                     #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
@@ -723,15 +720,21 @@ def get_all_internal_roots(mode = "N=6"):
         elif mode == "M=N/2":
             risk = c/0.1 
             for N in N_values:
-                M = N//2
+                M = int(N//2)
                 key = (risk, M, N)
                 try:
-                    root = internal_roots(risk, N, int(M))
+                    root = internal_roots(risk, N, M, game = game)
                     internal_roots_dic[key] = root
                     #print(f"Roots for N = {N}, M = {M}, risk = {risk}: ", root,"\n")
                 except Exception as e: 
                     raise e
-    #print("internal roots: ", internal_roots_dic)
+    print("internal roots: ", internal_roots_dic)
+    # with open(f'internal_roots_{mode}_{game}.csv', 'w', newline='') as file:
+    #     csv_writer = csv.writer(file)
+    #     # Write the header row
+    #     csv_writer.writerow(['Risk', 'M', 'N', 'Root'])
+    #     # Write the data
+    #     csv_writer.writerows(internal_roots_data)
 
 
 def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
@@ -759,10 +762,10 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
             M = int(N//2)
             plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"N = {N}")
     
-    plt.legend()
-    plt.xlabel('x (Fraction of cooperators)')
-    plt.ylabel('Satationary distribution')
-    plt.title(f'Stationary distribution vs. x ({mode})')
+    plt.legend(fontsize=14)
+    plt.xlabel('x (Fraction of cooperators)', fontsize=16)
+    plt.ylabel('Satationary distribution', fontsize=16)
+    #plt.title(f'Stationary distribution vs. x ({mode})')
 
     plt.savefig(f'Plots/{game}/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}.png') 
     #plt.show()
@@ -771,16 +774,17 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
 
 #evolution_k_with_Z(model = "COMPLETE") #not in the paper, just for visualization
 
-for game in games_list:
-    evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
-    evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
-    evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
-    evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
+# for game in games_list:
+#     evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
+#     evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
+#     evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
+#     evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
 
-evolution_gamma_with_gradient_of_selection(mode = "N=6") #1B, infinite population
-evolution_gamma_with_gradient_of_selection(mode = "M=2") #2C, finite pop.
-evolution_gamma_with_gradient_of_selection(mode = "N/M=2") #2D, finite pop.
+# for game in games_list[1:-1]:
+#     evolution_gamma_with_gradient_of_selection(game = game, mode = "N=6") #1B, infinite population
+#     evolution_gamma_with_gradient_of_selection(game = game, mode = "M=2") #2C, finite pop.
+#     evolution_gamma_with_gradient_of_selection(game = game, mode = "N/M=2") #2D, finite pop.
 
-# get_all_internal_roots(mode = "N=6")
-# get_all_internal_roots(mode = "M=2") 
-# get_all_internal_roots(mode = "N/M=2")
+get_all_internal_roots(mode = "N=6", game = "SH")
+get_all_internal_roots(mode = "M=2", game = "SH") 
+get_all_internal_roots(mode = "N/M=2", game = "SH")
