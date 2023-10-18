@@ -245,7 +245,7 @@ def payoffC(k, M, r, game = "SH"):
     elif game == "SG":
         # https://www.sciencedirect.com/science/article/pii/S0022519309003166?via%3Dihub#fd8
         # Each C knows the threshold, that's why they contribute k/M if k<M (hoping that k hits M)
-        return 0 if k == 0 else (payoffD(k, M, r, game) - (c * theta(k - M) / k) - (c * (1 - theta(k - M)) / M))
+        return 0 if k == 0 else (payoffD(k, M, r, game) - (c*b * theta(k - M) / k) - (c*b * (1 - theta(k - M)) / M))
     elif game == "PD":
         # Defined as equal to SH without risk
         return payoffD(k + 1, M, r, game) - c*b
