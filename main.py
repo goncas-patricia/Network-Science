@@ -686,8 +686,8 @@ def evolution_gamma_with_gradient_of_selection(game = "SH", mode = "N=6"):
 
     plt.legend()
     plt.xlabel('Gradient of selection')
-    plt.ylabel('Gamma')
-    plt.title(f'Gamma vs gradient of selection ({mode})')
+    plt.ylabel('Cost to risk ratio')
+    plt.title(f'Cost to risk ratio vs. gradient of selection ({mode})')
 
     plt.savefig(f'Plots/{game}/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
     #plt.show()
