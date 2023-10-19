@@ -665,7 +665,6 @@ def evolution_gamma_with_gradient_of_selection(game = "SH", mode = "N=6"):
         for N in N_values:
             plt.plot(x_vals, [gamma(x, N, M, game = game) for x in x_vals], label = f'N = {N}')
     elif mode == "N/M=2":
-        risk = c/0.1 
         for N in N_values:
             M = int(N//2)
             plt.plot(x_vals, [gamma(x, N, M, game = game) for x in x_vals], label = f'N = {N}')
@@ -679,6 +678,42 @@ def evolution_gamma_with_gradient_of_selection(game = "SH", mode = "N=6"):
     #plt.title(f'Cost to risk ratio vs. gradient of selection ({mode})')
 
     plt.savefig(f'Plots/{game}/gamma_vs_gradient_of_selection_{mode.replace("/", "-")}.png') 
+    #plt.show()
+    plt.close()
+
+
+def evolution_fitness_delta_with_gradient_of_selection(game = "SH", mode = "N=6", gamma = gamma):
+    """ Gives us analogy for figure 1B/1.B.
+        Infinite well-mixed population.
+        It also retrieves the internal roots of the gradient of selection.
+    """
+
+    # Evaluate function and create the plot
+    Z = 50 
+    x_vals = [i / Z for i in range(Z)]
+    risk = c*gamma
+
+    if mode == "N=6":
+        x_vals = [i / 1000 for i in range(1000)]    
+        N = 6
+        for M in M_values:
+            plt.plot(x_vals, [fitness_delta(x, risk, game, N, M, int(x*N), pop_type = INFINITE_WELL_MIXED) for x in x_vals], label = f'M = {M}')
+    elif mode == "M=2":
+        M = 2
+        for N in N_values:
+            plt.plot(x_vals, [fitness_delta(x, risk, game, N, M, int(x*Z), pop_type = FINITE_WELL_MIXED) for x in x_vals], label = f'N = {N}')
+    elif mode == "N/M=2":
+        for N in N_values:
+            M = int(N//2)
+            plt.plot(x_vals, [fitness_delta(x, risk, game, N, M, int(x*Z), pop_type = FINITE_WELL_MIXED) for x in x_vals], label = f'N = {N}')
+
+    plt.plot(x_vals, [0 for x in x_vals]) 
+    plt.legend(fontsize=14)
+    plt.xlabel('Gradient of selection', fontsize=16)
+    plt.ylabel('Fitness delta', fontsize=16)
+    #plt.title(f'Cost to risk ratio vs. gradient of selection ({mode})')
+
+    plt.savefig(f'Plots/{game}/fitness_delta_vs_gradient_of_selection_{mode.replace("/", "-")}_risk={risk}.png') 
     #plt.show()
     plt.close()
 
@@ -710,7 +745,6 @@ def get_all_internal_roots(mode = "N=6", game = "SH"):
                 except Exception as e: 
                     raise e
         elif mode == "M=N/2":
-            risk = c/0.1 
             for N in N_values:
                 M = int(N//2)
                 key = (risk, M, N)
@@ -729,7 +763,7 @@ def get_all_internal_roots(mode = "N=6", game = "SH"):
     #     csv_writer.writerows(internal_roots_data)
 
 
-def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
+def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6", gamma = 4):
     """ Gives us figure 1C/1.C.
         For finite populations.
     """
@@ -744,12 +778,12 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
         for risk in r:
             plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"risk = {risk}")
     elif mode == "M=2":
-        risk = c*4
+        risk = c*gamma #4
         M = 2
         for N in N_values:
             plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"N = {N}")
     elif mode == "N/M=2":
-        risk = c*4
+        risk = c*gamma #4
         for N in N_values:
             M = int(N//2)
             plt.plot(x_vals, [P for P in stationary_distribution(Z, N, M, risk, game, beta = 5)[::-1]], label = f"N = {N}")
@@ -759,18 +793,23 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
     plt.ylabel('Satationary distribution', fontsize=16)
     #plt.title(f'Stationary distribution vs. x ({mode})')
 
-    plt.savefig(f'Plots/{game}/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}.png') 
+    plt.savefig(f'Plots/{game}/stationary_distribution_vs_x_{game}_{mode.replace("/", "-")}_beta={b}_risk={risk}.png') 
     #plt.show()
     plt.close()
 
 
 #evolution_k_with_Z(model = "COMPLETE") #not in the paper, just for visualization
 
+g = 4
+
 for game in games_list:
     evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
-    evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
-    evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
-    evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "N=6", gamma = g) #1C, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "M=2", gamma = g) #2A, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "N/M=2", gamma = g) #2B, finite pop.
+    evolution_fitness_delta_with_gradient_of_selection(game = game, mode = "N=6", gamma = g) #Similar to 1B
+    evolution_fitness_delta_with_gradient_of_selection(game = game, mode = "M=2", gamma = g) #Similar to 2C
+    evolution_fitness_delta_with_gradient_of_selection(game = game, mode = "N/M=2", gamma = g) #Similar to 2D
 
 for game in games_list[1:-1]:
     evolution_gamma_with_gradient_of_selection(game = game, mode = "N=6") #1B, infinite population
