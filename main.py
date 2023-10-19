@@ -210,6 +210,7 @@ def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
 
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
+    print("game and pop type", game, pop_type)
     if pop_type == INFINITE_WELL_MIXED and game == "SH":
         return fitness_delta_infinite_well_mixed(x, risk, N, M, game = game)
     else:
