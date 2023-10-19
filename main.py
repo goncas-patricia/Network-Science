@@ -210,7 +210,6 @@ def fitness_delta(x, risk, game, N, M, k, pop_type=INFINITE_WELL_MIXED, Z=50):
 
     Risk of collective failure provides an escape from the tragedy of the commons,
     Francisco C. Santos, Jorge M. Pacheco"""
-    print("game and pop type", game, pop_type)
     if pop_type == INFINITE_WELL_MIXED and game == "SH":
         return fitness_delta_infinite_well_mixed(x, risk, N, M, game = game)
     else:
@@ -226,7 +225,7 @@ def payoffD(k, M, r, game = "SH"):
         # I adapt from the paper: considering risk for all if M < N is not met
         return b * (theta(k - M) + (1 - r) * (1 - theta(k - M)))
     elif game == "PD":
-        return b * (theta(k - M))
+        return b 
 
 
 def payoffC(k, M, r, game = "SH"):
@@ -269,7 +268,6 @@ def fitness_infinite_well_mixed(x, risk, N, M, k, game = "SH"):
         mult = (x ** k) * ((1 - x) ** (N - 1 - k))
         fC += binomial * mult * piC
         fD += binomial * mult * piD
-
     return fC, fD
 
 
@@ -315,13 +313,6 @@ def fitness_finite_well_mixed(Z, risk, N, M, k, game = "SH"):
     for j in range(min(N, k)):
         piD = payoffD(j, M, risk, game = game)
         piC = payoffC(j, M, risk, game = game)
-        # print("")
-        # print("Z =", Z)
-        # print("k =", k)
-        # print("N =", N)
-        # print("j =", j)
-        # print("Z - k - 1=", Z - k - 1)
-        # print("N - j - 1 =", N - j - 1)
         binomialC = math.comb(k - 1, j) * math.comb(Z - k, N - j - 1)
         binomialD = math.comb(k, j) * math.comb(Z - k - 1, N - j - 1)
         fC += binomialC * piD
@@ -775,17 +766,17 @@ def evolution_stationary_distribution_with_x(game = 'SH', mode = "N=6"):
 
 #evolution_k_with_Z(model = "COMPLETE") #not in the paper, just for visualization
 
-# for game in games_list:
-#     evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
-#     evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
-#     evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
-#     evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
+for game in games_list:
+    evolution_gradient_of_selection_with_x(game = game, mode = "N=6") #1A, infinite population
+    evolution_stationary_distribution_with_x(game = game, mode = "N=6") #1C, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "M=2") #2A, finite pop.
+    evolution_stationary_distribution_with_x(game = game, mode = "N/M=2") #2B, finite pop.
 
-# for game in games_list[1:-1]:
-#     evolution_gamma_with_gradient_of_selection(game = game, mode = "N=6") #1B, infinite population
-#     evolution_gamma_with_gradient_of_selection(game = game, mode = "M=2") #2C, finite pop.
-#     evolution_gamma_with_gradient_of_selection(game = game, mode = "N/M=2") #2D, finite pop.
+for game in games_list[1:-1]:
+    evolution_gamma_with_gradient_of_selection(game = game, mode = "N=6") #1B, infinite population
+    evolution_gamma_with_gradient_of_selection(game = game, mode = "M=2") #2C, finite pop.
+    evolution_gamma_with_gradient_of_selection(game = game, mode = "N/M=2") #2D, finite pop.
 
-get_all_internal_roots(mode = "N=6", game = "SH")
-get_all_internal_roots(mode = "M=2", game = "SH") 
-get_all_internal_roots(mode = "N/M=2", game = "SH")
+# get_all_internal_roots(mode = "N=6", game = "SH")
+# get_all_internal_roots(mode = "M=2", game = "SH") 
+# get_all_internal_roots(mode = "N/M=2", game = "SH")
